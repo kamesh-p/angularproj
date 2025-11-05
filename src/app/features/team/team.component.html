@@ -1,0 +1,15 @@
+<div class="page-header">
+  <h1 class="page-title">Team Members</h1>
+  <p class="page-description">View and manage your team</p>
+</div>
+
+<div class="team-grid">
+  @for (member of teamMembers(); track member.id) {
+    <div class="team-card">
+      <div class="member-avatar">{{ member.avatar }}</div>
+      <h3>{{ member.name }}</h3>
+      <p class="member-role">{{ member.role }}</p>
+      <span class="status" [class]="'status--' + member.status">{{ member.status }}</span>
+    </div>
+  }
+</div>

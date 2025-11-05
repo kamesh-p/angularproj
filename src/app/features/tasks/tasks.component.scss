@@ -1,0 +1,68 @@
+.tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.task-card {
+  background-color: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-card-border);
+  padding: 20px;
+}
+
+.task-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.task-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  font-size: var(--font-size-sm);
+}
+
+.badge {
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  
+  &--urgent {
+    background-color: rgba(var(--color-error-rgb), 0.15);
+    color: var(--color-error);
+  }
+  
+  &--high {
+    background-color: rgba(var(--color-warning-rgb), 0.15);
+    color: var(--color-warning);
+  }
+  
+  &--medium {
+    background-color: rgba(var(--color-info-rgb), 0.15);
+    color: var(--color-info);
+  }
+  
+  &--low {
+    background-color: rgba(var(--color-success-rgb), 0.15);
+    color: var(--color-success);
+  }
+}
+
+.badge-status--todo {
+  background-color: rgba(var(--color-info-rgb), 0.15);
+  color: var(--color-info);
+}
+
+.badge-status--in_progress {
+  background-color: rgba(var(--color-warning-rgb), 0.15);
+  color: var(--color-warning);
+}
+
+.badge-status--done {
+  background-color: rgba(var(--color-success-rgb), 0.15);
+  color: var(--color-success);
+}

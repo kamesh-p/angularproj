@@ -1,0 +1,12 @@
+@if (modalService.modal()) {
+  <div class="modal">
+    <div class="modal-content">
+      <h3>{{ modalService.modal()!.title }}</h3>
+      <p>{{ modalService.modal()!.message }}</p>
+      <div class="modal-actions">
+        <button class="btn btn--secondary" (click)="modalService.close()">Cancel</button>
+        <button class="btn btn--primary" (click)="modalService.confirm()">Confirm</button>
+      </div>
+    </div>
+  </div>
+}

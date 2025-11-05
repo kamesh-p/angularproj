@@ -1,0 +1,58 @@
+<div class="app-layout">
+  <aside class="sidebar" [class.collapsed]="sidebarCollapsed">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">🚀 TaskFlow</div>
+    </div>
+    <nav class="sidebar-nav">
+      <a routerLink="/dashboard" routerLinkActive="active" class="nav-item">
+        <span class="nav-icon">📊</span>
+        <span>Dashboard</span>
+      </a>
+      <a routerLink="/projects" routerLinkActive="active" class="nav-item">
+        <span class="nav-icon">📁</span>
+        <span>Projects</span>
+      </a>
+      <a routerLink="/tasks" routerLinkActive="active" class="nav-item">
+        <span class="nav-icon">✓</span>
+        <span>Tasks</span>
+      </a>
+      <a routerLink="/team" routerLinkActive="active" class="nav-item">
+        <span class="nav-icon">👥</span>
+        <span>Team</span>
+      </a>
+      <a routerLink="/profile" routerLinkActive="active" class="nav-item">
+        <span class="nav-icon">👤</span>
+        <span>Profile</span>
+      </a>
+      <a href="#" class="nav-item" (click)="onLogout($event)">
+        <span class="nav-icon">🚪</span>
+        <span>Logout</span>
+      </a>
+    </nav>
+  </aside>
+  
+  <div class="main-content">
+    <header class="app-header">
+      <div class="header-left">
+        <button class="menu-toggle" (click)="toggleSidebar()">☰</button>
+        <div class="search-bar">
+          <span class="search-icon">🔍</span>
+          <input type="text" placeholder="Search projects, tasks..." />
+        </div>
+      </div>
+      <div class="header-right">
+        <button class="icon-button">
+          <span>🔔</span>
+          <span class="notification-badge">3</span>
+        </button>
+        <div class="user-menu">
+          <div class="user-avatar">{{ currentUser()?.avatar || '👤' }}</div>
+        </div>
+      </div>
+    </header>
+    
+    <div class="content-area">
+      <router-outlet></router-outlet>
+    </div>
+  </div>
+</div>

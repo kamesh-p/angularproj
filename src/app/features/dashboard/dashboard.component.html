@@ -1,0 +1,93 @@
+<div class="page-header">
+  <h1 class="page-title">Dashboard</h1>
+  <p class="page-description">Welcome back, {{ currentUser()?.name || 'User' }}! Here's your project overview.</p>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon blue">📁</div>
+    <div class="stat-content">
+      <h3>{{ totalProjects }}</h3>
+      <p>Total Projects</p>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon orange">⚡</div>
+    <div class="stat-content">
+      <h3>{{ activeTasks }}</h3>
+      <p>Active Tasks</p>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green">✓</div>
+    <div class="stat-content">
+      <h3>{{ completedTasks }}</h3>
+      <p>Completed Tasks</p>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon purple">📋</div>
+    <div class="stat-content">
+      <h3>{{ totalTasks }}</h3>
+      <p>Total Tasks</p>
+    </div>
+  </div>
+</div>
+
+<div class="grid" style="grid-template-columns: 1fr;">
+  <div class="card">
+    <div class="card-body">
+      <h2 class="section-title">Recent Activities</h2>
+      <div class="activity-list">
+        @for (task of recentTasks; track task.id) {
+          <div class="activity-item">
+            <div class="activity-avatar">{{ getUserAvatar(task.assignedTo[0]) }}</div>
+            <div class="activity-content">
+              <p class="activity-text">
+                <strong>{{ getUserName(task.assignedTo[0]) }}</strong> 
+                {{ task.status === 'done' ? 'completed' : 'is working on' }} 
+                <strong>{{ task.title }}</strong>
+              </p>
+              <p class="activity-time">{{ task.createdAt | timeAgo }}</p>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="grid grid-2 mt-16">
+  <div class="card">
+    <div class="card-body">
+      <h2 class="section-title">Quick Actions</h2>
+      <div class="flex flex-col gap-8">
+        <button class="btn btn--primary w-full" (click)="navigate('/projects')">+ Create New Project</button>
+        <button class="btn btn--secondary w-full" (click)="navigate('/tasks')">+ Add New Task</button>
+        <button class="btn btn--secondary w-full" (click)="navigate('/team')">View Team Members</button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="card">
+    <div class="card-body">
+      <h2 class="section-title">Task Summary</h2>
+      <div class="flex flex-col gap-12">
+        <div>
+          <div class="flex justify-between mb-8">
+            <span>Todo</span>
+            <span class="badge badge--todo">{{ todoTasks }}</span>
+          </div>
+          <div class="flex justify-between mb-8">
+            <span>In Progress</span>
+            <span class="badge badge--in_progress">{{ activeTasks }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span>Completed</span>
+            <span class="badge badge--done">{{ completedTasks }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

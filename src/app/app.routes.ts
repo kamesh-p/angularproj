@@ -6,6 +6,7 @@ export const routes: Routes = [
     path: 'login', 
     loadComponent: () => import('./features/auth/login.component').then(m => m.LoginComponent)
   },
+ 
   {
     path: '',
     loadComponent: () => import('./shared/components/layout/layout.component').then(m => m.LayoutComponent),
@@ -31,7 +32,7 @@ export const routes: Routes = [
       { 
         path: 'profile', 
         loadComponent: () => import('./features/profile/profile.component').then(m => m.ProfileComponent)
-      }
+      },
     ]
   },
   { path: '**', redirectTo: 'login' }

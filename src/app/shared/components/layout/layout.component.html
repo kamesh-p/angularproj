@@ -35,16 +35,18 @@
     <header class="app-header">
       <div class="header-left">
         <button class="menu-toggle" (click)="toggleSidebar()">☰</button>
-        <div class="search-bar">
+        <div class="search-bar" *ngIf="showSearchBar()">
           <span class="search-icon">🔍</span>
-          <input type="text" placeholder="Search projects, tasks..." />
+          <input 
+            #searchInput
+            type="text" 
+            [placeholder]="searchPlaceholder"
+            (input)="onSearchInput($event)"
+            (keypress)="onSearchKeyPress($event)"
+          />
         </div>
       </div>
       <div class="header-right">
-        <button class="icon-button">
-          <span>🔔</span>
-          <span class="notification-badge">3</span>
-        </button>
         <div class="user-menu">
           <div class="user-avatar">{{ currentUser()?.avatar || '👤' }}</div>
         </div>

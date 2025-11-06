@@ -12,4 +12,5 @@ import { StateService } from '../../core/services/state.service';
 export class ProfileComponent {
   private stateService = inject(StateService);
   readonly currentUser = this.stateService.currentUser;
+  
 }

@@ -14,11 +14,11 @@ export class AuthService {
 
   login(email: string, password: string): LoginResponse {
     const users = this.stateService.users();
-    const user = users.find(u => u.email === email);
+    const user = users.find(u => u.email === email && u.password === password); ;
     
     if (user) {
       this.stateService.setCurrentUser(user);
-      this.stateService.setAuthenticated(true);
+    
       return { success: true, user };
     }
     
@@ -27,7 +27,6 @@ export class AuthService {
 
   logout() {
     this.stateService.setCurrentUser(null);
-    this.stateService.setAuthenticated(false);
     this.router.navigate(['/login']);
   }
 

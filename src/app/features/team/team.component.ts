@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { StateService } from '../../core/services/state.service';
 
@@ -12,4 +12,19 @@ import { StateService } from '../../core/services/state.service';
 export class TeamComponent {
   private stateService = inject(StateService);
   readonly teamMembers = this.stateService.teamMembers;
+    readonly searchValue = this.stateService.currentSearchValue;
+    readonly filteredTeams = computed(() => {
+    const searchTerm = this.searchValue().toLowerCase().trim();
+    const allTeams = this.teamMembers();
+    
+    if (!searchTerm) {
+      return allTeams; 
+    }
+    
+    return allTeams.filter(team => 
+      team.name.toLowerCase().includes(searchTerm) ||
+      team.role.toLowerCase().includes(searchTerm) 
+      
+    );
+  });
 }

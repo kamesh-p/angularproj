@@ -4,7 +4,7 @@
 </div>
 
 <div class="tasks-list">
-  @for (task of tasks(); track task.id) {
+  @for (task of filteredTasks(); track task.id) {
     <div class="task-card">
       <div class="task-header">
         <h3>{{ task.title }}</h3>
@@ -15,6 +15,11 @@
         <span class="badge" [class]="'badge-status--' + task.status">{{ task.status }}</span>
         <span>Due: {{ task.dueDate }}</span>
       </div>
+    </div>
+  }
+  @empty {
+    <div class="empty-state">
+      <p>No Tasks available</p>
     </div>
   }
 </div>

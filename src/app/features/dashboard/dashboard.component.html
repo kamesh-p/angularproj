@@ -62,8 +62,8 @@
     <div class="card-body">
       <h2 class="section-title">Quick Actions</h2>
       <div class="flex flex-col gap-8">
-        <button class="btn btn--primary w-full" (click)="navigate('/projects')">+ Create New Project</button>
-        <button class="btn btn--secondary w-full" (click)="navigate('/tasks')">+ Add New Task</button>
+        <button class="btn btn--primary w-full" (click)="openCreateProjectDialog()">+ Create New Project</button>
+        <button class="btn btn--secondary w-full" (click)="openCreateTaskDialog()">+ Add New Task</button>
         <button class="btn btn--secondary w-full" (click)="navigate('/team')">View Team Members</button>
       </div>
     </div>
@@ -91,3 +91,229 @@
     </div>
   </div>
 </div>
+
+<!-- Create Project Dialog -->
+@if (showCreateProjectDialog) {
+<div class="dialog-overlay">
+  <div class="dialog">
+    <div class="dialog-header">
+      <h2 class="dialog-title">Create New Project</h2>
+      <button class="dialog-close" (click)="closeCreateProjectDialog()">×</button>
+    </div>
+    
+    <div class="dialog-body">
+      <form [formGroup]="projectForm" class="form">
+        <div class="form-group">
+          <label for="projectName" class="form-label">Project Name</label>
+          <input
+            type="text"
+            id="projectName"
+            formControlName="name"
+            class="form-input"
+            placeholder="Enter project name"
+          />
+          @if (projectForm.get('name')?.invalid && projectForm.get('name')?.touched) {
+            <div class="form-error">
+              Project name is required and must be at least 3 characters long.
+            </div>
+          }
+        </div>
+
+        <div class="form-group">
+          <label for="projectDescription" class="form-label">Description</label>
+          <textarea
+            id="projectDescription"
+            formControlName="description"
+            class="form-textarea"
+            placeholder="Enter project description"
+            rows="3"
+          ></textarea>
+          @if (projectForm.get('description')?.invalid && projectForm.get('description')?.touched) {
+            <div class="form-error">
+              Description is required and must be at least 10 characters long.
+            </div>
+          }
+        </div>
+
+        <div class="form-group">
+          <label for="projectStatus" class="form-label">Status</label>
+          <select
+            id="projectStatus"
+            formControlName="status"
+            class="form-select"
+          >
+            <option value="planning">Planning</option>
+            <option value="in_progress">In Progress</option>
+            <option value="on_hold">On Hold</option>
+            <option value="completed">Completed</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="projectStartDate" class="form-label">Start Date</label>
+          <input
+            type="date"
+            id="projectStartDate"
+            formControlName="startDate"
+            class="form-input"
+          />
+          @if (projectForm.get('startDate')?.invalid && projectForm.get('startDate')?.touched) {
+            <div class="form-error">
+              Start date is required.
+            </div>
+          }
+        </div>
+      </form>
+    </div>
+    
+    <div class="dialog-footer">
+      <button class="btn btn--secondary" (click)="closeCreateProjectDialog()">Cancel</button>
+      <button 
+        class="btn btn--primary" 
+        (click)="createProject()"
+        [disabled]="!projectForm.valid"
+      >
+        Create Project
+      </button>
+    </div>
+  </div>
+</div>
+}
+
+<!-- Create Task Dialog -->
+@if (showCreateTaskDialog) {
+<div class="dialog-overlay">
+  <div class="dialog">
+    <div class="dialog-header">
+      <h2 class="dialog-title">Create New Task</h2>
+      <button class="dialog-close" (click)="closeCreateTaskDialog()">×</button>
+    </div>
+    
+    <div class="dialog-body">
+      <form [formGroup]="taskForm" class="form">
+        <div class="form-group">
+          <label for="taskTitle" class="form-label">Task Title</label>
+          <input
+            type="text"
+            id="taskTitle"
+            formControlName="title"
+            class="form-input"
+            placeholder="Enter task title"
+          />
+          @if (taskForm.get('title')?.invalid && taskForm.get('title')?.touched) {
+            <div class="form-error">
+              Task title is required and must be at least 3 characters long.
+            </div>
+          }
+        </div>
+
+        <div class="form-group">
+          <label for="taskDescription" class="form-label">Description</label>
+          <textarea
+            id="taskDescription"
+            formControlName="description"
+            class="form-textarea"
+            placeholder="Enter task description"
+            rows="3"
+          ></textarea>
+          @if (taskForm.get('description')?.invalid && taskForm.get('description')?.touched) {
+            <div class="form-error">
+              Description is required and must be at least 10 characters long.
+            </div>
+          }
+        </div>
+
+        <div class="form-group">
+          <label for="taskProject" class="form-label">Project</label>
+          <select
+            id="taskProject"
+            formControlName="projectId"
+            class="form-select"
+          >
+            <option value="">Select a project</option>
+            @for (project of projects(); track project.id) {
+              <option [value]="project.id">{{ project.name }}</option>
+            }
+          </select>
+          @if (taskForm.get('projectId')?.invalid && taskForm.get('projectId')?.touched) {
+            <div class="form-error">
+              Project is required.
+            </div>
+          }
+        </div>
+
+        <div class="form-group">
+          <label for="taskStatus" class="form-label">Status</label>
+          <select
+            id="taskStatus"
+            formControlName="status"
+            class="form-select"
+          >
+            <option value="todo">Todo</option>
+            <option value="in_progress">In Progress</option>
+            <option value="done">Done</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="taskPriority" class="form-label">Priority</label>
+          <select
+            id="taskPriority"
+            formControlName="priority"
+            class="form-select"
+          >
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="taskDueDate" class="form-label">Due Date</label>
+          <input
+            type="date"
+            id="taskDueDate"
+            formControlName="dueDate"
+            class="form-input"
+          />
+          @if (taskForm.get('dueDate')?.invalid && taskForm.get('dueDate')?.touched) {
+            <div class="form-error">
+              Due date is required.
+            </div>
+          }
+        </div>
+
+        <div class="form-group">
+          <label for="taskAssignedTo" class="form-label">Assign To</label>
+          <select
+            id="taskAssignedTo"
+            formControlName="assignedTo"
+            class="form-select"
+          >
+            <option value="">Select a team member</option>
+            @for (user of users(); track user.id) {
+              <option [value]="user.id">{{ user.name }}</option>
+            }
+          </select>
+          @if (taskForm.get('assignedTo')?.invalid && taskForm.get('assignedTo')?.touched) {
+            <div class="form-error">
+              Assigning to a team member is required.
+            </div>
+          }
+        </div>
+      </form>
+    </div>
+    
+    <div class="dialog-footer">
+      <button class="btn btn--secondary" (click)="closeCreateTaskDialog()">Cancel</button>
+      <button 
+        class="btn btn--primary" 
+        (click)="createTask()"
+        [disabled]="!taskForm.valid"
+      >
+        Create Task
+      </button>
+    </div>
+  </div>
+</div>
+}

@@ -6,6 +6,7 @@ export interface User {
   role: string;
   status: 'online' | 'offline';
   createdAt: string;
+  password: string;
 }
 
 export interface LoginResponse {

@@ -1,16 +1,41 @@
 <div class="page-header">
   <h1 class="page-title">Profile</h1>
   <p class="page-description">Manage your profile settings</p>
+  <button (click)="refreshProfile()" class="btn btn-secondary">🔄 Refresh</button>
 </div>
 
 @if (currentUser()) {
   <div class="profile-card">
-    <div class="profile-avatar">{{ currentUser()!.avatar }}</div>
+   
+    <div class="profile-avatar-section">
+      <div class="profile-avatar">{{ currentUser()!.avatar }}</div>
+      <div class="avatar-actions">
+        <button 
+          *ngFor="let option of avatarOptions; trackBy: trackByEmoji"
+          (click)="changeAvatar(option.emoji)" 
+          class="btn btn-sm">
+          {{ option.emoji }} {{ option.label }}
+        </button>
+      </div>
+    </div>
+    
     <h2>{{ currentUser()!.name }}</h2>
     <p class="profile-email">{{ currentUser()!.email }}</p>
     <p class="profile-role">{{ currentUser()!.role }}</p>
-    <span class="status" [class]="'status--' + currentUser()!.status">
-      {{ currentUser()!.status }}
-    </span>
+    
+    <div class="status-section">
+      <span class="status" [class]="'status--' + currentUser()!.status">
+        {{ currentUser()!.status }}
+      </span>
+      <div class="status-actions">
+        <button 
+          *ngFor="let option of statusOptions; trackBy: trackByValue"
+          (click)="changeStatus(option.value)" 
+          class="btn btn-sm"
+          [class]="option.class">
+          {{ option.label }}
+        </button>
+      </div>
+    </div>
   </div>
 }

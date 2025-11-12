@@ -1,14 +1,49 @@
 <div class="page-header">
   <h1 class="page-title">Projects</h1>
   <p class="page-description">Manage and track all your projects</p>
+  
+  <!-- Project Statistics -->
+  <div class="project-stats">
+    <div class="stat-card">
+      <span class="stat-label">Total:</span>
+      <span class="stat-value">{{ projectStats().total }}</span>
+    </div>
+   
+    <div class="stat-card">
+      <span class="stat-label">Completed:</span>
+      <span class="stat-value">{{ projectStats().completed }}</span>
+    </div>
+  </div>
+  
+  <!-- Action Buttons -->
+  <div class="action-buttons">
+    <button (click)="refreshProjects()" [disabled]="isLoading()">
+      {{ isLoading() ? 'Loading...' : 'Refresh Projects' }}
+    </button>
+  </div>
+  
+  <!-- Error Display -->
+  @if (error()) {
+    <div class="error-message">
+      {{ error() }}
+      <button (click)="error.set(null)">Dismiss</button>
+    </div>
+  }
 </div>
 
-<!-- Search results info -->
+<!-- Search Info -->
+@if (debouncedSearchTerm()) {
+  <div class="search-info">
+    Searching for: <strong>{{ debouncedSearchTerm() }}</strong>
+  </div>
+}
 
-
+<!-- Projects Grid -->
 <div class="projects-grid">
   @for (project of filteredProjects(); track project.id) {
-    <div class="project-card">
+    <div class="project-card" 
+         [class.selected]="selectedProjectId() === project.id"
+         (click)="selectProject(project.id)">
       <h3>{{ project.name }}</h3>
       <p>{{ project.description }}</p>
       <div class="project-meta">
@@ -22,3 +57,31 @@
     </div>
   }
 </div>
+
+<!-- Dialog for Selected Project -->
+@if (selectedProject()) {
+  <div class="dialog-overlay" (click)="closeDialog()">
+    <div class="dialog" (click)="$event.stopPropagation()">
+      <div class="dialog__header">
+        <h2 class="dialog__title">Project Details</h2>
+        <button class="dialog__close" (click)="closeDialog()">
+          ×
+        </button>
+      </div>
+      
+      <div class="dialog__content">
+        <div class="selected-project-details">
+          <h2>Selected Project</h2>
+          <p><strong>Name:</strong> {{ selectedProject()?.name }}</p>
+       <p> <strong>Status:-</strong>  {{ selectedProject()?.status }}</p>
+          <p><strong>Description:</strong> {{ selectedProject()?.description }}</p>
+          <p><strong>Start Date:</strong> {{ selectedProject()?.startDate  }}</p>
+        </div>
+      </div>
+      
+      <div class="dialog__footer">
+        <button (click)="closeDialog()">Close</button>
+      </div>
+    </div>
+  </div>
+}

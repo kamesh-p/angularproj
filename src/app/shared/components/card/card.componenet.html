@@ -1,0 +1,28 @@
+<div class="card" [class.elevated]="elevated">
+      <!-- Header with ng-content -->
+      <div class="card-header" *ngIf="hasHeader">
+        <ng-content select="[card-header]"></ng-content>
+      </div>
+      
+      <!-- Main content -->
+      <div class="card-body">
+        <ng-content></ng-content>
+      </div>
+      
+      <!-- Footer with ng-content -->
+      <div class="card-footer" *ngIf="hasFooter">
+        <ng-content select="[card-footer]"></ng-content>
+      </div>
+      
+      <!-- Actions from ContentChildren -->
+      <div class="card-actions" *ngIf="actions && actions.length > 0">
+        <ng-container *ngFor="let action of actions">
+          <ng-container *ngTemplateOutlet="action.templateRef"></ng-container>
+        </ng-container>
+      </div>
+      
+      <!-- Custom template from ContentChild -->
+      <div class="card-extra" *ngIf="customTemplate">
+        <ng-container *ngTemplateOutlet="customTemplate"></ng-container>
+      </div>
+    </div>

@@ -4,7 +4,7 @@
   
   <!-- Debug info for ViewChild/ViewChildren features -->
   <div class="debug-info" style="font-size: 12px; color: #666; margin-top: 8px;">
-    <span>Stat Cards: {{ totalStatCards }} | Container Visible: {{ isStatsContainerVisible }} | Highlighted: {{ highlightedCardIndex >= 0 ? highlightedCardIndex : 'None' }}</span>
+    <!-- <span>Stat Cards: {{ totalStatCards }} | Container Visible: {{ isStatsContainerVisible }} | Highlighted: {{ highlightedCardIndex >= 0 ? highlightedCardIndex : 'None' }}</span> -->
   </div>
 </div>
 
@@ -98,7 +98,39 @@
     </div>
   </div>
 </div>
+<!-- Replace existing cards with reusable card component -->
+<!-- <app-card [elevated]="true">
+  <div card-header>
+    <h2>Recent Activities</h2>
+    <button (click)="refreshActivities()">🔄 Refresh</button>
+  </div>
+  
 
+  <div class="activity-list">
+    @for (task of recentTasks; track task.id) {
+      <div class="activity-item">{{ task.title }}</div>
+    }
+  </div>
+  
+  <div card-footer>
+    <button class="btn btn--primary">View All</button>
+  </div>
+
+  <ng-template #customContent>
+    <div class="stats-summary">
+      Total activities: {{ recentTasks.length }}
+    </div>
+  </ng-template>
+  
+
+  <ng-template cardAction>
+    <button (click)="exportData()">📥 Export</button>
+  </ng-template>
+  
+  <ng-template cardAction>
+    <button (click)="shareData()">🔗 Share</button>
+  </ng-template>
+</app-card> -->
 <div class="grid grid-2 mt-16">
   <div class="card">
     <div class="card-body">
@@ -134,7 +166,7 @@
         <div class="viewchildren-info" style="padding: 12px; background: rgba(0,0,0,0.02); border-radius: 6px;">
           <div style="font-size: 11px; color: #888;">
             <div>Total Cards: {{ totalStatCards }}</div>
-            <div>Container Visible: {{ isStatsContainerVisible ? 'Yes' : 'No' }}</div>
+            <!-- <div>Container Visible: {{ isStatsContainerVisible ? 'Yes' : 'No' }}</div> -->
           </div>
         </div>
       </div>

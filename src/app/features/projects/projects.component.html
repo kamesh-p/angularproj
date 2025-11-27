@@ -2,8 +2,7 @@
   <h1 class="page-title">Projects</h1>
   <p class="page-description">Manage and track all your projects</p>
   
-  <!-- Project Statistics -->
-  <div class="project-stats">
+<div class="project-stats">
     <div class="stat-card">
       <span class="stat-label">Total:</span>
       <span class="stat-value">{{ projectStats().total }}</span>
@@ -15,12 +14,12 @@
     </div>
   </div>
   
-  <!-- Action Buttons -->
-  <div class="action-buttons">
-    <button (click)="refreshProjects()" [disabled]="isLoading()">
-      {{ isLoading() ? 'Loading...' : 'Refresh Projects' }}
-    </button>
-  </div>
+  <!-- Loading Indicator -->
+  @if (isLoading()) {
+    <div class="loading-indicator">
+      Loading projects...
+    </div>
+  }
   
   <!-- Error Display -->
   @if (error()) {
@@ -31,14 +30,14 @@
   }
 </div>
 
-<!-- Search Info -->
+
 @if (debouncedSearchTerm()) {
   <div class="search-info">
     Searching for: <strong>{{ debouncedSearchTerm() }}</strong>
   </div>
 }
 
-<!-- Projects Grid -->
+
 <div class="projects-grid">
   @for (project of filteredProjects(); track project.id) {
     <div class="project-card" 
@@ -53,12 +52,16 @@
     </div>
   } @empty {
     <div class="empty-state">
-      <p>No projects available</p>
+      @if (isLoading()) {
+        <p>Loading projects...</p>
+      } @else {
+        <p>No projects available</p>
+      }
     </div>
   }
 </div>
 
-<!-- Dialog for Selected Project -->
+
 @if (selectedProject()) {
   <div class="dialog-overlay" (click)="closeDialog()">
     <div class="dialog" (click)="$event.stopPropagation()">
@@ -73,9 +76,9 @@
         <div class="selected-project-details">
           <h2>Selected Project</h2>
           <p><strong>Name:</strong> {{ selectedProject()?.name }}</p>
-       <p> <strong>Status:-</strong>  {{ selectedProject()?.status }}</p>
+          <p><strong>Status:</strong> {{ selectedProject()?.status }}</p>
           <p><strong>Description:</strong> {{ selectedProject()?.description }}</p>
-          <p><strong>Start Date:</strong> {{ selectedProject()?.startDate  }}</p>
+          <p><strong>Start Date:</strong> {{ selectedProject()?.startDate }}</p>
         </div>
       </div>
       

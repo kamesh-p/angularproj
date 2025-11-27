@@ -41,6 +41,7 @@ export class ProfileComponent implements OnInit {
     if (this.currentUser()?.id) {
       this.loadUserProfile(this.currentUser()!.id);
     }
+    this.refreshProfile();
   }
 
   
@@ -107,6 +108,8 @@ export class ProfileComponent implements OnInit {
     console.log('🟢 [PROFILE] Changing status...');
     this.updateProfile({ status: newStatus });
   }
+
+  
 
   refreshProfile() {
     const userId = this.currentUser()?.id;

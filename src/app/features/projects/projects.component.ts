@@ -1,4 +1,4 @@
-import { Component, inject, computed, signal } from '@angular/core';
+import { Component, inject, computed, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { StateService } from '../../core/services/state.service';
 import { FormatDatePipe } from '../../shared/pipes/format-date.pipe';
@@ -13,7 +13,7 @@ import { of, combineLatest } from 'rxjs';
   templateUrl: './projects.component.html',
   styleUrls: ['./projects.component.scss']
 })
-export class ProjectsComponent {
+export class ProjectsComponent implements OnInit {
   private stateService = inject(StateService);
   
   // Basic signals
@@ -27,20 +27,17 @@ export class ProjectsComponent {
   // Convert search signal to observable for RxJS operators
   private searchValue$ = toObservable(this.searchValue);
   
- 
   private debouncedSearch$ = this.searchValue$.pipe(
     debounceTime(300), 
     distinctUntilChanged(), 
     map(term => term.toLowerCase().trim()),
     startWith('') 
   );
-  
 
   readonly debouncedSearchTerm = toSignal(this.debouncedSearch$, { 
     initialValue: '' 
   });
   
- 
   readonly filteredProjects = computed(() => {
     const searchTerm = this.debouncedSearchTerm();
     const allProjects = this.projects();
@@ -61,9 +58,7 @@ export class ProjectsComponent {
     const projects = this.filteredProjects();
     return {
       total: projects.length,
-      
       completed: projects.filter(p => p.status === 'completed').length,
-     
     };
   });
   
@@ -90,7 +85,12 @@ export class ProjectsComponent {
     initialValue: null 
   });
   
-  // Method to refresh projects with error handling
+
+  ngOnInit(): void {
+    this.refreshProjects();
+  }
+  
+  
   async refreshProjects(): Promise<void> {
     this.isLoading.set(true);
     this.error.set(null);
@@ -113,7 +113,8 @@ export class ProjectsComponent {
   clearSelection(): void {
     this.selectedProjectId.set(null);
   }
-    closeDialog(): void {
+  
+  closeDialog(): void {
     this.selectedProjectId.set(null);
   }
 }

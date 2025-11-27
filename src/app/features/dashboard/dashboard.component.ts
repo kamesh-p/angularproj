@@ -127,9 +127,7 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
     this.cdRef.markForCheck();
   }
 
-  /**
-   * Get the text content of a specific stat card
-   */
+  
   getCardContent(index: number): string {
     if (this.statCards && this.statCards.length > index) {
       const card = this.statCards.get(index);

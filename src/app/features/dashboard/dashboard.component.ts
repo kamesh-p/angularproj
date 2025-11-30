@@ -14,13 +14,13 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { StateService } from '../../core/services/state.service';
-import { TimeAgoPipe } from '../../shared/pipes/time-ago.pipe';
+// import { TimeAgoPipe } from '../../shared/pipes/time-ago.pipe';
 import { HighlightDirective } from '../../shared/directives/highlight.directive';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, TimeAgoPipe, ReactiveFormsModule, HighlightDirective],
+  imports: [CommonModule, ReactiveFormsModule, HighlightDirective],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush

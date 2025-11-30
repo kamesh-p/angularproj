@@ -83,15 +83,12 @@
       <div class="activity-list">
         @for (task of recentTasks; track task.id) {
           <div class="activity-item">
-            <div class="activity-avatar">{{ getUserAvatar(task.assignedTo[0]) }}</div>
+            <span class="activity-icon">📝</span>
             <div class="activity-content">
-              <p class="activity-text">
-                <strong>{{ getUserName(task.assignedTo[0]) }}</strong> 
-                {{ task.status === 'done' ? 'completed' : 'is working on' }} 
-                <strong>{{ task.title }}</strong>
-              </p>
-              <p class="activity-time">{{ task.createdAt | timeAgo }}</p>
+              <p class="activity-title">{{ task.title }}</p>
+              <!-- <p class="activity-timestamp">{{ task.updatedAt | date:'short' }}</p> -->
             </div>
+           
           </div>
         }
       </div>

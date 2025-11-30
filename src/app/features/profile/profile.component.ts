@@ -10,7 +10,6 @@ import { ToastService } from '../../core/services/toast.service';
   imports: [CommonModule],
   templateUrl: './profile.component.html',
   styleUrls: ['./profile.component.scss'],
-
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ProfileComponent implements OnInit {
@@ -20,10 +19,8 @@ export class ProfileComponent implements OnInit {
   
   readonly currentUser = this.stateService.currentUser;
   
-  // Firebase REST API URL
-  private firebaseUrl = 'https://food-app-http-request-default-rtdb.firebaseio.com';
-
-
+ 
+  private apiUrl = 'http://localhost:8081/api';
   
   readonly avatarOptions = [
     { emoji: '👤', label: 'Default' },
@@ -44,28 +41,24 @@ export class ProfileComponent implements OnInit {
     this.refreshProfile();
   }
 
-  
   trackByEmoji(index: number, item: { emoji: string; label: string }): string {
     return item.emoji;
   }
 
- 
   trackByValue(index: number, item: { value: string; label: string }): string {
     return item.value;
   }
 
-
-
   loadUserProfile(userId: string) {
-    console.log('📡 [PROFILE] Loading user profile via HTTP...', userId);
+    console.log('📡 [PROFILE] Loading user profile via Java backend...', userId);
     
-    this.http.get<any>(`${this.firebaseUrl}/users/${userId}.json`)
+    // Using your existing UserController endpoint
+    this.http.get<any>(`${this.apiUrl}/users/${userId}`)
       .subscribe({
         next: (userData) => {
-          console.log('✅ [PROFILE] User profile loaded successfully');
+          console.log('✅ [PROFILE] User profile loaded successfully', userData);
           if (userData) {
-            // Signal update automatically triggers change detection with OnPush
-            this.stateService.setCurrentUser({ id: userId, ...userData });
+            this.stateService.setCurrentUser(userData);
           }
           this.toastService.show('Profile loaded', 'success');
         },
@@ -80,15 +73,13 @@ export class ProfileComponent implements OnInit {
     const userId = this.currentUser()?.id;
     if (!userId) return;
 
-    console.log('📝 [PROFILE] Updating profile via HTTP...', updates);
+    console.log('📝 [PROFILE] Updating profile via Java backend...', updates);
     
-    this.http.patch(`${this.firebaseUrl}/users/${userId}.json`, updates)
+    // Using PATCH endpoint for partial updates (your existing patchUser endpoint)
+    this.http.patch(`${this.apiUrl}/users/${userId}`, updates)
       .subscribe({
-        next: () => {
-          console.log('✅ [PROFILE] Profile updated successfully');
-          // Using spread operator to create new object reference
-          // This is important for OnPush strategy to detect changes
-          const updatedUser = { ...this.currentUser()!, ...updates };
+        next: (updatedUser: any) => {
+          console.log('✅ [PROFILE] Profile updated successfully', updatedUser);
           this.stateService.setCurrentUser(updatedUser);
           this.toastService.show('Profile updated successfully', 'success');
         },
@@ -109,8 +100,6 @@ export class ProfileComponent implements OnInit {
     this.updateProfile({ status: newStatus });
   }
 
-  
-
   refreshProfile() {
     const userId = this.currentUser()?.id;
     if (userId) {
@@ -119,4 +108,3 @@ export class ProfileComponent implements OnInit {
     }
   }
 }
-

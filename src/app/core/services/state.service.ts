@@ -17,18 +17,6 @@ import {
   finalize,
   scan
 } from 'rxjs/operators';
-import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, get, set, push, update, remove, Database } from 'firebase/database';
-
-const firebaseConfig = {
-  apiKey: "AIzaSyAn7Xg5stumYKFK0aU-G9hEpKjIUGc5DYM",
-  authDomain: "food-app-http-request.firebaseapp.com",
-  databaseURL: "https://food-app-http-request-default-rtdb.firebaseio.com",
-  projectId: "food-app-http-request",
-  storageBucket: "food-app-http-request.firebasestorage.app",
-  messagingSenderId: "937563553862",
-  appId: "1:937563553862:web:8a92dd30398c8e8c528a47"
-};
 
 export interface AppState {
   currentUser: User | null;
@@ -44,15 +32,16 @@ export interface AppState {
 })
 export class StateService {
   private http = inject(HttpClient);
-  private database: Database;
   
-  private firebaseUrl = 'https://food-app-http-request-default-rtdb.firebaseio.com';
+  // Java backend URL
+  private readonly API_URL = 'http://localhost:8081/api';
   
   // Signals
   readonly currentUser = signal<User | null>(null);
   readonly users = signal<User[]>([]);
   readonly projects = signal<Project[]>([]);
   readonly tasks = signal<Task[]>([]);
+ 
   readonly teamMembers = signal<TeamMember[]>([]);
   readonly isAuthenticated = signal<boolean>(false);
   readonly isLoading = signal<boolean>(false);
@@ -88,11 +77,7 @@ export class StateService {
   }
 
   constructor() {
-    const app = initializeApp(firebaseConfig);
-    this.database = getDatabase(app);
     this.loadInitialData();
-    
-    // Subscribe to auto-refresh
     this.autoRefresh$.subscribe();
   }
 
@@ -108,33 +93,66 @@ export class StateService {
   }
 
   // ========================================
-  // ADVANCED RxJS METHODS
+  // PROJECT METHODS (Required by ProjectsComponent)
   // ========================================
 
   /**
+   * Get project by ID - REQUIRED BY ProjectsComponent
+   */
+  getProjectById(projectId: string): Observable<Project | null> {
+    return this.http.get<Project>(`${this.API_URL}/projects/${projectId}`).pipe(
+      catchError(error => {
+        console.error('❌ Error finding project:', error);
+        return of(null);
+      })
+    );
+  }
+
+  /**
+   * Load projects via HTTP - REQUIRED BY ProjectsComponent
+   */
+  async loadProjectsViaHttp(): Promise<void> {
+    console.log('📡 [STATE SERVICE] Loading projects via HTTP...');
+    
+    return new Promise((resolve, reject) => {
+      this.http.get<Project[]>(`${this.API_URL}/projects`).pipe(
+        retry(2),
+        catchError(error => {
+          console.error('❌ [STATE SERVICE] Error loading projects:', error);
+          reject(error);
+          return of(null);
+        })
+      ).subscribe({
+        next: (projects) => {
+          console.log('✅ [STATE SERVICE] Projects loaded via HTTP:', projects);
+          if (projects) {
+            this.projects.set(projects);
+            this.projectsSubject$.next(projects);
+          }
+          resolve();
+        },
+        error: (error) => {
+          reject(error);
+        }
+      });
+    });
+  }
+
+  /**
    * Fetch projects with automatic retry on failure
-   * Uses retry operator with exponential backoff
    */
   private fetchProjectsWithRetry(): Observable<Project[]> {
-    return this.http.get<any>(`${this.firebaseUrl}/projects.json`).pipe(
+    return this.http.get<Project[]>(`${this.API_URL}/projects`).pipe(
       retry({
         count: 3,
         delay: (error, retryCount) => {
           console.log(`🔄 Retry attempt ${retryCount} after error:`, error);
-          // Exponential backoff: 1s, 2s, 4s
           return of(null).pipe(delay(Math.pow(2, retryCount - 1) * 1000));
         }
       }),
-      map(projectsData => {
-        if (!projectsData) return [];
-        return Object.keys(projectsData).map(key => ({
-          id: key,
-          ...projectsData[key]
-        }));
-      }),
       catchError(error => {
         console.error('❌ Failed to fetch projects after retries:', error);
-        return of([]); // Return empty array as fallback
+        return of([]);
       })
     );
   }
@@ -143,13 +161,11 @@ export class StateService {
    * Load projects with advanced error handling and caching
    */
   loadProjectsViaHttpAdvanced(): Observable<Project[]> {
-    console.log('📡 [STATE SERVICE] Loading projects via HTTP with advanced operators...');
+    console.log('📡 [STATE SERVICE] Loading projects from Java backend...');
     
-    return this.http.get<any>(`${this.firebaseUrl}/projects.json`).pipe(
-      // Log the request
-      tap(() => console.log('🔄 Fetching projects...')),
+    return this.http.get<Project[]>(`${this.API_URL}/projects`).pipe(
+      tap(() => console.log('🔄 Fetching projects from Java backend...')),
       
-      // Retry 3 times with 1 second delay between attempts
       retryWhen(errors => 
         errors.pipe(
           scan((retryCount, error) => {
@@ -163,81 +179,28 @@ export class StateService {
         )
       ),
       
-      // Transform response
-      map(projectsData => {
-        console.log('✅ Projects loaded successfully');
-        if (!projectsData) return [];
-        return Object.keys(projectsData).map(key => ({
-          id: key,
-          ...projectsData[key]
-        }));
-      }),
-      
-      // Update signals
       tap(projects => {
+        console.log('✅ Projects loaded successfully from Java backend');
         this.projects.set(projects);
         this.projectsSubject$.next(projects);
       }),
       
-      // Handle errors gracefully
       catchError(error => {
         console.error('❌ Error loading projects:', error);
         return throwError(() => new Error('Failed to load projects. Please try again.'));
       }),
       
-      // Cache the result for subsequent subscribers
       shareReplay({ bufferSize: 1, refCount: true }),
       
-      // Cleanup logging
       finalize(() => console.log('🏁 Project loading completed'))
     );
   }
 
   /**
-   * Get project by ID with caching and error handling
-   */
-  getProjectById(projectId: string): Observable<Project | null> {
-    return this.projects$.pipe(
-      map(projects => projects.find(p => p.id === projectId) || null),
-      catchError(error => {
-        console.error('❌ Error finding project:', error);
-        return of(null);
-      })
-    );
-  }
-
-  /**
-   * Search projects with debouncing
-   */
-  searchProjects(searchTerm$: Observable<string>): Observable<Project[]> {
-    return searchTerm$.pipe(
-      debounceTime(300),
-      distinctUntilChanged(),
-      switchMap(term => {
-        const lowerTerm = term.toLowerCase().trim();
-        return this.projects$.pipe(
-          map(projects => {
-            if (!lowerTerm) return projects;
-            return projects.filter(p => 
-              p.name.toLowerCase().includes(lowerTerm) ||
-              p.description.toLowerCase().includes(lowerTerm) ||
-              p.status.toLowerCase().includes(lowerTerm)
-            );
-          })
-        );
-      }),
-      catchError(error => {
-        console.error('❌ Search error:', error);
-        return of([]);
-      })
-    );
-  }
-
-  /**
-   * Add project with optimistic updates and rollback on error
+   * Add project to Java backend
    */
   addProjectViaHttpAdvanced(project: Omit<Project, 'id' | 'createdAt'>): Observable<Project> {
-    console.log('📡 [STATE SERVICE] Adding project via HTTP with advanced operators...');
+    console.log('📡 [STATE SERVICE] Adding project to Java backend...');
     
     const newProject = {
       ...project,
@@ -249,17 +212,11 @@ export class StateService {
     const optimisticProject = { id: tempId, ...newProject };
     this.projects.update(projects => [...projects, optimisticProject]);
 
-    return this.http.post<any>(`${this.firebaseUrl}/projects.json`, newProject).pipe(
-      retry(2), // Retry twice on failure
-      
-      map(response => {
-        const createdProject = { id: response.name, ...newProject };
-        console.log('✅ Project added successfully:', createdProject);
-        return createdProject;
-      }),
+    return this.http.post<Project>(`${this.API_URL}/projects`, newProject).pipe(
+      retry(2),
       
       tap(createdProject => {
-        // Replace optimistic update with real data
+        console.log('✅ Project added successfully:', createdProject);
         this.projects.update(projects => 
           projects.map(p => p.id === tempId ? createdProject : p)
         );
@@ -268,7 +225,6 @@ export class StateService {
       
       catchError(error => {
         console.error('❌ Error adding project:', error);
-        // Rollback optimistic update
         this.projects.update(projects => 
           projects.filter(p => p.id !== tempId)
         );
@@ -280,20 +236,18 @@ export class StateService {
   }
 
   /**
-   * Update project with retry logic
+   * Update project in Java backend
    */
   updateProjectViaHttpAdvanced(projectId: string, updates: Partial<Project>): Observable<void> {
-    console.log('📡 [STATE SERVICE] Updating project via HTTP...');
+    console.log('📡 [STATE SERVICE] Updating project in Java backend...');
     
-    // Store original state for rollback
     const originalProjects = [...this.projects()];
     
-    // Optimistic update
     this.projects.update(projects => 
       projects.map(p => p.id === projectId ? { ...p, ...updates } : p)
     );
 
-    return this.http.patch<any>(`${this.firebaseUrl}/projects/${projectId}.json`, updates).pipe(
+    return this.http.put<void>(`${this.API_URL}/projects/${projectId}`, updates).pipe(
       retry(2),
       
       tap(() => {
@@ -303,41 +257,36 @@ export class StateService {
       
       catchError(error => {
         console.error('❌ Error updating project:', error);
-        // Rollback to original state
         this.projects.set(originalProjects);
         return throwError(() => new Error('Failed to update project'));
       }),
       
-      map(() => void 0) // Return void
+      map(() => void 0)
     );
   }
 
   /**
-   * Delete project with confirmation and cleanup
+   * Delete project from Java backend
    */
   deleteProjectViaHttpAdvanced(projectId: string): Observable<void> {
-    console.log('📡 [STATE SERVICE] Deleting project via HTTP...');
+    console.log('📡 [STATE SERVICE] Deleting project from Java backend...');
     
-    // Store original state for rollback
     const originalProjects = [...this.projects()];
     
-    // Optimistic delete
     this.projects.update(projects => projects.filter(p => p.id !== projectId));
 
-    return this.http.delete<any>(`${this.firebaseUrl}/projects/${projectId}.json`).pipe(
-      retry(1), // Retry once on failure
+    return this.http.delete<void>(`${this.API_URL}/projects/${projectId}`).pipe(
+      retry(1),
       
       tap(() => {
         console.log('✅ Project deleted successfully');
         this.projectsSubject$.next(this.projects());
       }),
       
-      // Also delete related tasks
       switchMap(() => this.deleteRelatedTasks(projectId)),
       
       catchError(error => {
         console.error('❌ Error deleting project:', error);
-        // Rollback deletion
         this.projects.set(originalProjects);
         return throwError(() => new Error('Failed to delete project'));
       }),
@@ -356,9 +305,8 @@ export class StateService {
       return of(void 0);
     }
 
-    // Delete each task
     const deleteObservables = relatedTasks.map(task => 
-      this.http.delete(`${this.firebaseUrl}/tasks/${task.id}.json`)
+      this.http.delete(`${this.API_URL}/tasks/${task.id}`)
     );
 
     return new Observable(observer => {
@@ -373,6 +321,325 @@ export class StateService {
   }
 
   /**
+   * Add project via HTTP (for backward compatibility)
+   */
+  async addProjectViaHttp(project: Omit<Project, 'id' | 'createdAt'>): Promise<Project> {
+    console.log('📡 [STATE SERVICE] Adding project via HTTP...');
+    
+    const newProject = {
+      ...project,
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+
+    return new Promise((resolve, reject) => {
+      this.http.post<Project>(`${this.API_URL}/projects`, newProject).pipe(
+        retry(2),
+        catchError(error => {
+          console.error('❌ [STATE SERVICE] Error adding project:', error);
+          reject(error);
+          return throwError(() => error);
+        })
+      ).subscribe({
+        next: (createdProject) => {
+          console.log('✅ [STATE SERVICE] Project added via HTTP:', createdProject);
+          this.projects.update(projects => [...projects, createdProject]);
+          this.projectsSubject$.next(this.projects());
+          resolve(createdProject);
+        },
+        error: (error) => {
+          reject(error);
+        }
+      });
+    });
+  }
+
+  /**
+   * Update project via HTTP (for backward compatibility)
+   */
+  async updateProjectViaHttp(projectId: string, updates: Partial<Project>): Promise<void> {
+    console.log('📡 [STATE SERVICE] Updating project via HTTP...');
+    
+    return new Promise((resolve, reject) => {
+      this.http.put<Project>(`${this.API_URL}/projects/${projectId}`, updates).pipe(
+        retry(2),
+        catchError(error => {
+          console.error('❌ [STATE SERVICE] Error updating project:', error);
+          reject(error);
+          return throwError(() => error);
+        })
+      ).subscribe({
+        next: (updatedProject) => {
+          console.log('✅ [STATE SERVICE] Project updated via HTTP:', updatedProject);
+          this.projects.update(projects => 
+            projects.map(p => p.id === projectId ? updatedProject : p)
+          );
+          this.projectsSubject$.next(this.projects());
+          resolve();
+        },
+        error: (error) => {
+          reject(error);
+        }
+      });
+    });
+  }
+
+  /**
+   * Delete project via HTTP (for backward compatibility)
+   */
+  async deleteProjectViaHttp(projectId: string): Promise<void> {
+    console.log('📡 [STATE SERVICE] Deleting project via HTTP...');
+    
+    return new Promise((resolve, reject) => {
+      this.http.delete<void>(`${this.API_URL}/projects/${projectId}`).pipe(
+        retry(1),
+        catchError(error => {
+          console.error('❌ [STATE SERVICE] Error deleting project:', error);
+          reject(error);
+          return throwError(() => error);
+        })
+      ).subscribe({
+        next: () => {
+          console.log('✅ [STATE SERVICE] Project deleted via HTTP');
+          this.projects.update(projects => projects.filter(p => p.id !== projectId));
+          this.projectsSubject$.next(this.projects());
+          resolve();
+        },
+        error: (error) => {
+          reject(error);
+        }
+      });
+    });
+  }
+
+  // ========================================
+  // OTHER DATA METHODS
+  // ========================================
+
+  private async loadUsers() {
+    try {
+      this.http.get<User[]>(`${this.API_URL}/users`).subscribe({
+        next: (users) => {
+          this.users.set(users);
+        },
+        error: (error) => {
+          console.error('Error loading users:', error);
+        }
+      });
+    } catch (error) {
+      console.error('Error loading users:', error);
+    }
+  }
+
+  /**
+   * Load users via HTTP (for backward compatibility)
+   */
+  async loadUsersViaHttp(): Promise<void> {
+    console.log('📡 [STATE SERVICE] Loading users via HTTP...');
+    
+    return new Promise((resolve, reject) => {
+      this.http.get<User[]>(`${this.API_URL}/users`).pipe(
+        retry(2),
+        catchError(error => {
+          console.error('❌ [STATE SERVICE] Error loading users:', error);
+          reject(error);
+          return of(null);
+        })
+      ).subscribe({
+        next: (users) => {
+          console.log('✅ [STATE SERVICE] Users loaded via HTTP:', users);
+          if (users) {
+            this.users.set(users);
+          }
+          resolve();
+        },
+        error: (error) => {
+          reject(error);
+        }
+      });
+    });
+  }
+
+  setCurrentUser(user: User | null) {
+    this.currentUser.set(user);
+    this.isAuthenticated.set(!!user);
+  }
+
+  async updateUser(userId: string, updates: Partial<User>) {
+    try {
+      this.http.put<User>(`${this.API_URL}/users/${userId}`, updates).subscribe({
+        next: (updatedUser) => {
+          this.users.update(users => 
+            users.map(u => u.id === userId ? updatedUser : u)
+          );
+          if (this.currentUser()?.id === userId) {
+            this.currentUser.set(updatedUser);
+          }
+        },
+        error: (error) => {
+          console.error('Error updating user:', error);
+        }
+      });
+    } catch (error) {
+      console.error('Error updating user:', error);
+    }
+  }
+
+  private async loadProjects() {
+    try {
+      this.http.get<Project[]>(`${this.API_URL}/projects`).subscribe({
+        next: (projects) => {
+          this.projects.set(projects);
+          this.projectsSubject$.next(projects);
+        },
+        error: (error) => {
+          console.error('Error loading projects:', error);
+        }
+      });
+    } catch (error) {
+      console.error('Error loading projects:', error);
+    }
+  }
+
+  async addProject(project: Omit<Project, 'id' | 'createdAt'>): Promise<Project> {
+    const newProject = {
+      ...project,
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+
+    return new Promise((resolve, reject) => {
+      this.http.post<Project>(`${this.API_URL}/projects`, newProject).subscribe({
+        next: (createdProject) => {
+          this.projects.update(projects => [...projects, createdProject]);
+          this.projectsSubject$.next(this.projects());
+          resolve(createdProject);
+        },
+        error: (error) => {
+          console.error('Error adding project:', error);
+          reject(error);
+        }
+      });
+    });
+  }
+
+  async updateProject(projectId: string, updates: Partial<Project>) {
+    try {
+      this.http.put<Project>(`${this.API_URL}/projects/${projectId}`, updates).subscribe({
+        next: (updatedProject) => {
+          this.projects.update(projects => 
+            projects.map(p => p.id === projectId ? updatedProject : p)
+          );
+          this.projectsSubject$.next(this.projects());
+        },
+        error: (error) => {
+          console.error('Error updating project:', error);
+        }
+      });
+    } catch (error) {
+      console.error('Error updating project:', error);
+    }
+  }
+
+  async deleteProject(projectId: string) {
+    try {
+      this.http.delete<void>(`${this.API_URL}/projects/${projectId}`).subscribe({
+        next: () => {
+          this.projects.update(projects => projects.filter(p => p.id !== projectId));
+          this.tasks.update(tasks => tasks.filter(t => t.projectId !== projectId));
+          this.projectsSubject$.next(this.projects());
+        },
+        error: (error) => {
+          console.error('Error deleting project:', error);
+        }
+      });
+    } catch (error) {
+      console.error('Error deleting project:', error);
+    }
+  }
+
+  private async loadTasks() {
+    try {
+      this.http.get<Task[]>(`${this.API_URL}/tasks`).subscribe({
+        next: (tasks) => {
+           console.log("jqwdjqwduj",tasks);
+          this.tasks.set(tasks);
+        },
+        error: (error) => {
+          console.error('Error loading tasks:', error);
+        }
+      });
+    } catch (error) {
+      console.error('Error loading tasks:', error);
+    }
+  }
+
+  async addTask(task: Omit<Task, 'id' | 'createdAt'>): Promise<Task> {
+    const newTask = {
+      ...task,
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+
+    return new Promise((resolve, reject) => {
+      this.http.post<Task>(`${this.API_URL}/tasks`, newTask).subscribe({
+        next: (createdTask) => {
+          this.tasks.update(tasks => [...tasks, createdTask]);
+          resolve(createdTask);
+        },
+        error: (error) => {
+          console.error('Error adding task:', error);
+          reject(error);
+        }
+      });
+    });
+  }
+
+  async updateTask(taskId: string, updates: Partial<Task>) {
+    try {
+      this.http.put<Task>(`${this.API_URL}/tasks/${taskId}`, updates).subscribe({
+        next: (updatedTask) => {
+          this.tasks.update(tasks => 
+            tasks.map(t => t.id === taskId ? updatedTask : t)
+          );
+        },
+        error: (error) => {
+          console.error('Error updating task:', error);
+        }
+      });
+    } catch (error) {
+      console.error('Error updating task:', error);
+    }
+  }
+
+  async deleteTask(taskId: string) {
+    try {
+      this.http.delete<void>(`${this.API_URL}/tasks/${taskId}`).subscribe({
+        next: () => {
+          this.tasks.update(tasks => tasks.filter(t => t.id !== taskId));
+        },
+        error: (error) => {
+          console.error('Error deleting task:', error);
+        }
+      });
+    } catch (error) {
+      console.error('Error deleting task:', error);
+    }
+  }
+
+  private async loadTeamMembers() {
+    try {
+      this.http.get<TeamMember[]>(`${this.API_URL}/teams`).subscribe({
+        next: (teamMembers) => {
+          this.teamMembers.set(teamMembers);
+        },
+        error: (error) => {
+          console.error('Error loading team members:', error);
+        }
+      });
+    } catch (error) {
+      console.error('Error loading team members:', error);
+    }
+  }
+
+  /**
    * Trigger manual refresh
    */
   triggerRefresh(): void {
@@ -384,340 +651,5 @@ export class StateService {
    */
   getProjectsObservable(): Observable<Project[]> {
     return this.projects$;
-  }
-
-  // ========================================
-  // EXISTING FIREBASE SDK METHODS (Keep these)
-  // ========================================
-
-  private async getData(path: string): Promise<any> {
-    try {
-      const dbRef = ref(this.database, path);
-      const snapshot = await get(dbRef);
-      return snapshot.val();
-    } catch (error) {
-      console.error(`Error fetching data from ${path}:`, error);
-      throw error;
-    }
-  }
-
-  private async setData(path: string, data: any): Promise<void> {
-    try {
-      const dbRef = ref(this.database, path);
-      await set(dbRef, data);
-    } catch (error) {
-      console.error(`Error setting data at ${path}:`, error);
-      throw error;
-    }
-  }
-
-  private async pushData(path: string, data: any): Promise<string> {
-    try {
-      const dbRef = ref(this.database, path);
-      const newRef = push(dbRef);
-      await set(newRef, data);
-      return newRef.key!;
-    } catch (error) {
-      console.error(`Error pushing data to ${path}:`, error);
-      throw error;
-    }
-  }
-
-  private async updateData(path: string, updates: any): Promise<void> {
-    try {
-      const dbRef = ref(this.database, path);
-      await update(dbRef, updates);
-    } catch (error) {
-      console.error(`Error updating data at ${path}:`, error);
-      throw error;
-    }
-  }
-
-  private async removeData(path: string): Promise<void> {
-    try {
-      const dbRef = ref(this.database, path);
-      await remove(dbRef);
-    } catch (error) {
-      console.error(`Error removing data at ${path}:`, error);
-      throw error;
-    }
-  }
-
-  // Original HTTP methods (keep these for backward compatibility)
-  async loadUsersViaHttp() {
-    console.log('📡 [STATE SERVICE] Loading users via HTTP...');
-    
-    this.http.get<any>(`${this.firebaseUrl}/users.json`)
-      .pipe(
-        retry(2),
-        catchError(error => {
-          console.error('❌ [STATE SERVICE] Error loading users:', error);
-          return of(null);
-        })
-      )
-      .subscribe({
-        next: (usersData) => {
-          console.log('✅ [STATE SERVICE] Users loaded via HTTP:', usersData);
-          const users = usersData ? Object.keys(usersData).map(key => ({
-            id: key,
-            ...usersData[key]
-          })) : [];
-          this.users.set(users);
-        }
-      });
-  }
-
-  async loadProjectsViaHttp() {
-    console.log('📡 [STATE SERVICE] Loading projects via HTTP...');
-    
-    this.http.get<any>(`${this.firebaseUrl}/projects.json`)
-      .pipe(
-        retry(2),
-        catchError(error => {
-          console.error('❌ [STATE SERVICE] Error loading projects:', error);
-          return of(null);
-        })
-      )
-      .subscribe({
-        next: (projectsData) => {
-          console.log('✅ [STATE SERVICE] Projects loaded via HTTP:', projectsData);
-          const projects = projectsData ? Object.keys(projectsData).map(key => ({
-            id: key,
-            ...projectsData[key]
-          })) : [];
-          this.projects.set(projects);
-        }
-      });
-  }
-
-  async addProjectViaHttp(project: Omit<Project, 'id' | 'createdAt'>) {
-    console.log('📡 [STATE SERVICE] Adding project via HTTP...');
-    
-    const newProject = {
-      ...project,
-      createdAt: new Date().toISOString().split('T')[0]
-    };
-
-    this.http.post<any>(`${this.firebaseUrl}/projects.json`, newProject)
-      .pipe(
-        retry(2),
-        catchError(error => {
-          console.error('❌ [STATE SERVICE] Error adding project:', error);
-          return throwError(() => error);
-        })
-      )
-      .subscribe({
-        next: (response) => {
-          console.log('✅ [STATE SERVICE] Project added via HTTP:', response);
-          const createdProject = { id: response.name, ...newProject };
-          this.projects.update(projects => [...projects, createdProject]);
-          return createdProject;
-        }
-      });
-  }
-
-  async updateProjectViaHttp(projectId: string, updates: Partial<Project>) {
-    console.log('📡 [STATE SERVICE] Updating project via HTTP...');
-    
-    this.http.patch<any>(`${this.firebaseUrl}/projects/${projectId}.json`, updates)
-      .pipe(
-        retry(2),
-        catchError(error => {
-          console.error('❌ [STATE SERVICE] Error updating project:', error);
-          return throwError(() => error);
-        })
-      )
-      .subscribe({
-        next: (response) => {
-          console.log('✅ [STATE SERVICE] Project updated via HTTP:', response);
-          this.projects.update(projects => 
-            projects.map(p => p.id === projectId ? { ...p, ...updates } : p)
-          );
-        }
-      });
-  }
-
-  async deleteProjectViaHttp(projectId: string) {
-    console.log('📡 [STATE SERVICE] Deleting project via HTTP...');
-    
-    this.http.delete<any>(`${this.firebaseUrl}/projects/${projectId}.json`)
-      .pipe(
-        retry(1),
-        catchError(error => {
-          console.error('❌ [STATE SERVICE] Error deleting project:', error);
-          return throwError(() => error);
-        })
-      )
-      .subscribe({
-        next: (response) => {
-          console.log('✅ [STATE SERVICE] Project deleted via HTTP:', response);
-          this.projects.update(projects => projects.filter(p => p.id !== projectId));
-        }
-      });
-  }
-
-  // Keep all your existing Firebase SDK methods
-  private async loadUsers() {
-    try {
-      const usersData = await this.getData('users');
-      const users = usersData ? Object.keys(usersData).map(key => ({
-        id: key,
-        ...usersData[key]
-      })) : [];
-      this.users.set(users);
-    } catch (error) {
-      console.error('Error loading users:', error);
-    }
-  }
-
-  setCurrentUser(user: User | null) {
-    this.currentUser.set(user);
-    this.isAuthenticated.set(!!user);
-  }
-
-  async updateUser(userId: string, updates: Partial<User>) {
-    try {
-      await this.updateData(`users/${userId}`, updates);
-      this.users.update(users => 
-        users.map(u => u.id === userId ? { ...u, ...updates } : u)
-      );
-      if (this.currentUser()?.id === userId) {
-        this.currentUser.set({ ...this.currentUser(), ...updates } as User);
-      }
-    } catch (error) {
-      console.error('Error updating user:', error);
-    }
-  }
-
-  private async loadProjects() {
-    try {
-      const projectsData = await this.getData('projects');
-      const projects = projectsData ? Object.keys(projectsData).map(key => ({
-        id: key,
-        ...projectsData[key]
-      })) : [];
-      this.projects.set(projects);
-      this.projectsSubject$.next(projects);
-    } catch (error) {
-      console.error('Error loading projects:', error);
-    }
-  }
-
-  async addProject(project: Omit<Project, 'id' | 'createdAt'>) {
-    const newProject = {
-      ...project,
-      createdAt: new Date().toISOString().split('T')[0]
-    };
-
-    try {
-      const projectId = await this.pushData('projects', newProject);
-      const createdProject = { id: projectId, ...newProject };
-      this.projects.update(projects => [...projects, createdProject]);
-      this.projectsSubject$.next(this.projects());
-      return createdProject;
-    } catch (error) {
-      console.error('Error adding project:', error);
-      throw error;
-    }
-  }
-
-  async updateProject(projectId: string, updates: Partial<Project>) {
-    try {
-      await this.updateData(`projects/${projectId}`, updates);
-      this.projects.update(projects => 
-        projects.map(p => p.id === projectId ? { ...p, ...updates } : p)
-      );
-      this.projectsSubject$.next(this.projects());
-    } catch (error) {
-      console.error('Error updating project:', error);
-    }
-  }
-
-  async deleteProject(projectId: string) {
-    try {
-      await this.removeData(`projects/${projectId}`);
-      this.projects.update(projects => projects.filter(p => p.id !== projectId));
-      
-      const tasksData = await this.getData('tasks');
-      if (tasksData) {
-        const taskUpdates: any = {};
-        Object.keys(tasksData).forEach(taskId => {
-          if (tasksData[taskId].projectId === projectId) {
-            taskUpdates[`tasks/${taskId}`] = null;
-          }
-        });
-        if (Object.keys(taskUpdates).length > 0) {
-          await this.updateData('/', taskUpdates);
-        }
-      }
-      
-      this.tasks.update(tasks => tasks.filter(t => t.projectId !== projectId));
-      this.projectsSubject$.next(this.projects());
-    } catch (error) {
-      console.error('Error deleting project:', error);
-    }
-  }
-
-  private async loadTasks() {
-    try {
-      const tasksData = await this.getData('tasks');
-      const tasks = tasksData ? Object.keys(tasksData).map(key => ({
-        id: key,
-        ...tasksData[key]
-      })) : [];
-      this.tasks.set(tasks);
-    } catch (error) {
-      console.error('Error loading tasks:', error);
-    }
-  }
-
-  async addTask(task: Omit<Task, 'id' | 'createdAt'>) {
-    const newTask = {
-      ...task,
-      createdAt: new Date().toISOString().split('T')[0]
-    };
-
-    try {
-      const taskId = await this.pushData('tasks', newTask);
-      const createdTask = { id: taskId, ...newTask };
-      this.tasks.update(tasks => [...tasks, createdTask]);
-      return createdTask;
-    } catch (error) {
-      console.error('Error adding task:', error);
-      throw error;
-    }
-  }
-
-  async updateTask(taskId: string, updates: Partial<Task>) {
-    try {
-      await this.updateData(`tasks/${taskId}`, updates);
-      this.tasks.update(tasks => 
-        tasks.map(t => t.id === taskId ? { ...t, ...updates } : t)
-      );
-    } catch (error) {
-      console.error('Error updating task:', error);
-    }
-  }
-
-  async deleteTask(taskId: string) {
-    try {
-      await this.removeData(`tasks/${taskId}`);
-      this.tasks.update(tasks => tasks.filter(t => t.id !== taskId));
-    } catch (error) {
-      console.error('Error deleting task:', error);
-    }
-  }
-
-  private async loadTeamMembers() {
-    try {
-      const teamMembersData = await this.getData('teamMembers');
-      const teamMembers = teamMembersData ? Object.keys(teamMembersData).map(key => ({
-        id: key,
-        ...teamMembersData[key]
-      })) : [];
-      this.teamMembers.set(teamMembers);
-    } catch (error) {
-      console.error('Error loading team members:', error);
-    }
   }
 }

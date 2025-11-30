@@ -2,13 +2,20 @@ export interface Project {
   id: string;
   name: string;
   description: string;
-  status: 'planning' | 'in_progress' | 'completed' | 'on_hold'; // Match your form values
+  owner: string;
+  status: 'planning' | 'in_progress' | 'on_hold' | 'completed';
   budget?: number;
   startDate: string;
   endDate?: string;
+}
+
+export interface CreateProjectRequest {
+  id: string; // Required by your backend validation
+  name: string;
+  description: string;
   owner: string;
-  members: string[];
-  createdAt: string;
-  updatedAt: string;
-  createdBy?: string;
+  status: string;
+  budget?: number;
+  startDate: string;
+  endDate?: string;
 }

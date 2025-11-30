@@ -1,9 +1,9 @@
 import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { StateService } from './state.service';
 import { LoginResponse, User } from '../../shared/models';
-import { Observable, of, throwError } from 'rxjs';
-import { delay } from 'rxjs/operators';
+import { Observable, map, catchError, of } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -12,38 +12,132 @@ export class AuthService {
   private readonly TOKEN_KEY = 'auth_token';
   private readonly REFRESH_TOKEN_KEY = 'refresh_token';
   private readonly USER_KEY = 'current_user';
+  private readonly API_URL = 'http://localhost:8081/api';
 
-  constructor(
-    private stateService: StateService,
-    private router: Router
-  ) {}
+  private http = inject(HttpClient);
+  private stateService = inject(StateService);
+  private router = inject(Router);
 
-  login(email: string, password: string): LoginResponse {
-    const users = this.stateService.users();
-    const user = users.find(u => u.email === email && u.password === password);
+ 
+  login(email: string, password: string): Observable<LoginResponse> {
+    console.log('🔵 Login attempt:', email);
     
-    if (user) {
-      this.stateService.setCurrentUser(user);
-      
-      // Generate mock tokens
-      const token = this.generateMockToken(user);
-      const refreshToken = this.generateMockRefreshToken(user);
-      
-      this.setToken(token);
-      this.setRefreshToken(refreshToken);
-      this.setCurrentUser(user);
-      
-      return { success: true, user };
-    }
-    
-    return { success: false, error: 'Invalid credentials' };
+    return this.http.post<{success: boolean, user?: User, error?: string}>(
+      `${this.API_URL}/auth/login`, 
+      { email, password }
+    ).pipe(
+      map(response => {
+        console.log('✅ Login response:', response);
+        
+        if (response.success && response.user) {
+          console.log('✅ Authentication successful');
+          this.handleSuccessfulLogin(response.user);
+          return { success: true, user: response.user };
+        } else {
+          console.error('❌ Login failed:', response.error);
+          return { success: false, error: response.error || 'Login failed' };
+        }
+      }),
+      catchError((error: HttpErrorResponse) => {
+        console.error('❌ Login error:', error);
+        
+        let errorMessage = 'Connection failed. Please ensure the backend server is running on port 8081.';
+        
+        if (error.status === 401) {
+          errorMessage = 'Invalid email or password';
+        } else if (error.status === 400) {
+          errorMessage = error.error?.error || 'Invalid request';
+        }
+        
+        return of({ 
+          success: false, 
+          error: errorMessage
+        });
+      })
+    );
   }
 
+  /**
+   * Handle successful login - set tokens and user
+   */
+  private handleSuccessfulLogin(user: User): void {
+    console.log('🎉 Login successful, setting up session');
+    
+    // Update state
+    this.stateService.setCurrentUser(user);
+    
+    // Generate mock tokens
+    const token = this.generateMockToken(user);
+    const refreshToken = this.generateMockRefreshToken(user);
+    
+    // Store tokens and user
+    this.setToken(token);
+    this.setRefreshToken(refreshToken);
+    this.setCurrentUser(user);
+  }
+
+  /**
+   * Logout user
+   */
   logout() {
+    console.log('👋 Logging out');
+    const currentUser = this.getCurrentUser();
+    
+    // Call logout endpoint to update user status
+    if (currentUser) {
+      this.http.post(`${this.API_URL}/auth/logout`, { userId: currentUser.id })
+        .pipe(catchError(error => {
+          console.warn('Logout endpoint failed:', error);
+          return of(null);
+        }))
+        .subscribe();
+    }
+    
     this.stateService.setCurrentUser(null);
     this.removeTokens();
     this.removeCurrentUser();
     this.router.navigate(['/login']);
+  }
+
+  /**
+   * Register new user
+   */
+  register(name: string, email: string, password: string, role?: string, avatar?: string): Observable<LoginResponse> {
+    console.log('🔵 Registration attempt:', email);
+    
+    return this.http.post<{success: boolean, user?: User, error?: string}>(
+      `${this.API_URL}/auth/register`,
+      { name, email, password, role, avatar }
+    ).pipe(
+      map(response => {
+        console.log('✅ Registration response:', response);
+        
+        if (response.success && response.user) {
+          console.log('✅ Registration successful');
+          this.handleSuccessfulLogin(response.user);
+          return { success: true, user: response.user };
+        } else {
+          console.error('❌ Registration failed:', response.error);
+          return { success: false, error: response.error || 'Registration failed' };
+        }
+      }),
+      catchError((error: HttpErrorResponse) => {
+        console.error('❌ Registration error:', error);
+        
+        let errorMessage = 'Registration failed. Please try again.';
+        
+        if (error.status === 409) {
+          errorMessage = 'Email already registered';
+        } else if (error.status === 400) {
+          errorMessage = error.error?.error || 'Invalid request';
+        }
+        
+        return of({ 
+          success: false, 
+          error: errorMessage
+        });
+      })
+    );
   }
 
   isAuthenticated(): boolean {
@@ -79,79 +173,33 @@ export class AuthService {
   removeTokens(): void {
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+    localStorage.removeItem(this.USER_KEY);
   }
 
   removeCurrentUser(): void {
     localStorage.removeItem(this.USER_KEY);
   }
 
-  // Token refresh method
-  refreshToken(refreshToken: string): Observable<{ accessToken: string }> {
-    const currentUser = this.getCurrentUser();
-    
-    if (refreshToken && currentUser) {
-      // Validate the refresh token (in a real app, this would call your backend)
-      const isValid = this.validateRefreshToken(refreshToken);
-      
-      if (isValid) {
-        const newToken = this.generateMockToken(currentUser);
-        return of({ accessToken: newToken }).pipe(delay(500)); // Simulate network delay
-      }
-    }
-    
-    return throwError(() => new Error('Invalid refresh token'));
-  }
-
   // Helper methods to generate mock tokens
   private generateMockToken(user: User): string {
-    // In a real app, this would come from your backend
     const payload = {
       userId: user.id,
       email: user.email,
       name: user.name,
       role: user.role,
-      exp: Date.now() + 15 * 60 * 1000, // 15 minutes
+      exp: Date.now() + 15 * 60 * 1000,
       iat: Date.now()
     };
     return `mock.jwt.token.${btoa(JSON.stringify(payload))}`;
   }
 
   private generateMockRefreshToken(user: User): string {
-    // In a real app, this would come from your backend
     const payload = {
       userId: user.id,
-      exp: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+      exp: Date.now() + 7 * 24 * 60 * 60 * 1000,
       iat: Date.now()
     };
     return `mock.refresh.token.${btoa(JSON.stringify(payload))}`;
-  }
-
-  private validateRefreshToken(refreshToken: string): boolean {
-    try {
-      // Extract the payload part from the mock token
-      const tokenParts = refreshToken.split('.');
-      if (tokenParts.length !== 3) return false;
-      
-      const payload = JSON.parse(atob(tokenParts[2]));
-      return payload.exp > Date.now();
-    } catch {
-      return false;
-    }
-  }
-
-  // Check if token is expired
-  isTokenExpired(token?: string | null): boolean {
-    if (!token) return true;
-    
-    try {
-      const tokenParts = token.split('.');
-      if (tokenParts.length !== 3) return true;
-      
-      const payload = JSON.parse(atob(tokenParts[2]));
-      return payload.exp < Date.now();
-    } catch {
-      return true;
-    }
   }
 
   // Auto-login from localStorage
@@ -159,12 +207,13 @@ export class AuthService {
     const token = this.getToken();
     const user = this.getCurrentUser();
     
-    if (token && user && !this.isTokenExpired(token)) {
+    if (token && user) {
+      console.log('🔄 Auto-login successful');
       this.stateService.setCurrentUser(user);
       return true;
     } else {
+      console.log('❌ Auto-login failed');
       this.removeTokens();
-      this.removeCurrentUser();
       return false;
     }
   }

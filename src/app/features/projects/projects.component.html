@@ -12,6 +12,18 @@
       <span class="stat-label">Completed:</span>
       <span class="stat-value">{{ projectStats().completed }}</span>
     </div>
+    <div class="stat-card">
+      <span class="stat-label">In-Progress:</span>
+      <span class="stat-value">{{ projectStats().onProgress }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">On-Hold:</span>
+      <span class="stat-value">{{ projectStats().onHold }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Planning:</span>
+      <span class="stat-value">{{ projectStats().Planning }}</span>
+    </div>
   </div>
   
   <!-- Loading Indicator -->

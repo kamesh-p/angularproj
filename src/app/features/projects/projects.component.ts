@@ -59,6 +59,9 @@ export class ProjectsComponent implements OnInit {
     return {
       total: projects.length,
       completed: projects.filter(p => p.status === 'completed').length,
+      onProgress: projects.filter(p => p.status === 'in_progress').length,
+      onHold: projects.filter(p => p.status === 'on_hold').length,
+      Planning: projects.filter(p => p.status === 'planning').length,
     };
   });
   

@@ -65,9 +65,8 @@
 </div>
 
 <!-- ViewChild Demo Controls -->
-<div class="demo-controls" style="margin: 16px 0; padding: 12px; background: var(--card-bg); border-radius: 8px;">
-  
-  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+<div class="demo-controls" style="margin: 24px 0; padding: 16px; background: var(--card-bg); border-radius: 8px; border: 1px solid var(--color-border);">
+  <div style="display: flex; gap: 12px; flex-wrap: wrap;">
     <button class="btn btn--secondary btn--small" (click)="highlightCard(0)">Highlight Projects</button>
     <button class="btn btn--secondary btn--small" (click)="highlightCard(1)">Highlight Active Tasks</button>
     <button class="btn btn--secondary btn--small" (click)="highlightCard(2)">Highlight Completed</button>
@@ -76,63 +75,57 @@
   </div>
 </div>
 
-<div class="grid" style="grid-template-columns: 1fr;">
+<!-- Recent Activities Section -->
+<div class="grid" style="grid-template-columns: 1fr; margin-bottom: 24px;">
   <div class="card">
-    <div class="card-body">
-      <h2 class="section-title">Recent Activities</h2>
+    <div class="card-header" style="padding: 20px 24px; border-bottom: 1px solid var(--color-border);">
+      <h2 style="font-size: 20px; font-weight: 600; margin: 0; color: var(--color-text);">Recent Activities</h2>
+    </div>
+    <div class="card-body" style="padding: 24px;">
       <div class="activity-list">
         @for (task of recentTasks; track task.id) {
-          <div class="activity-item">
-            <span class="activity-icon">📝</span>
-            <div class="activity-content">
-              <p class="activity-title">{{ task.title }}</p>
-              <!-- <p class="activity-timestamp">{{ task.updatedAt | date:'short' }}</p> -->
+          <div class="activity-item" style="display: flex; align-items: flex-start; gap: 16px; padding: 16px; border-radius: 8px; transition: background-color 0.2s ease; border: 1px solid var(--color-border); margin-bottom: 12px;">
+            <div class="activity-icon" style="width: 40px; height: 40px; border-radius: 8px; background: var(--color-secondary); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;">
+              📝
             </div>
-           
+            <div class="activity-content" style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+              <h3 style="font-size: 16px; font-weight: 600; margin: 0; color: var(--color-text);">
+                {{ task.title }}
+              </h3>
+              <p style="font-size: 14px; margin: 0; color: var(--color-text-secondary); line-height: 1.5;">
+                {{ task.description }}
+              </p>
+              <div style="display: flex; gap: 24px; margin-top: 4px;">
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  <span style="font-size: 12px; color: var(--color-text-secondary);">Due Date</span>
+                  <span style="font-size: 14px; font-weight: 500; color: var(--color-text);">
+                    {{ task.dueDate | date:'mediumDate' }}
+                  </span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  <span style="font-size: 12px; color: var(--color-text-secondary);">Created</span>
+                  <span style="font-size: 14px; font-weight: 500; color: var(--color-text);">
+                    {{ task.createdAt | date:'mediumDate' }}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         }
       </div>
     </div>
   </div>
 </div>
-<!-- Replace existing cards with reusable card component -->
-<!-- <app-card [elevated]="true">
-  <div card-header>
-    <h2>Recent Activities</h2>
-    <button (click)="refreshActivities()">🔄 Refresh</button>
-  </div>
-  
 
-  <div class="activity-list">
-    @for (task of recentTasks; track task.id) {
-      <div class="activity-item">{{ task.title }}</div>
-    }
-  </div>
-  
-  <div card-footer>
-    <button class="btn btn--primary">View All</button>
-  </div>
-
-  <ng-template #customContent>
-    <div class="stats-summary">
-      Total activities: {{ recentTasks.length }}
-    </div>
-  </ng-template>
-  
-
-  <ng-template cardAction>
-    <button (click)="exportData()">📥 Export</button>
-  </ng-template>
-  
-  <ng-template cardAction>
-    <button (click)="shareData()">🔗 Share</button>
-  </ng-template>
-</app-card> -->
-<div class="grid grid-2 mt-16">
+<!-- Quick Actions and Task Summary Section -->
+<div class="grid grid-2" style="gap: 24px; margin-top: 24px;">
+  <!-- Quick Actions Card -->
   <div class="card">
-    <div class="card-body">
-      <h2 class="section-title">Quick Actions</h2>
-      <div class="flex flex-col gap-8">
+    <div class="card-header" style="padding: 20px 24px; border-bottom: 1px solid var(--color-border);">
+      <h2 style="font-size: 20px; font-weight: 600; margin: 0; color: var(--color-text);">Quick Actions</h2>
+    </div>
+    <div class="card-body" style="padding: 24px;">
+      <div class="flex flex-col" style="gap: 16px;">
         <button class="btn btn--primary w-full" (click)="openCreateProjectDialog()">+ Create New Project</button>
         <button class="btn btn--secondary w-full" (click)="openCreateTaskDialog()">+ Add New Task</button>
         <button class="btn btn--secondary w-full" (click)="navigate('/team')">View Team Members</button>
@@ -140,29 +133,33 @@
     </div>
   </div>
   
+  <!-- Task Summary Card -->
   <div class="card">
-    <div class="card-body">
-      <h2 class="section-title">Task Summary</h2>
-      <div class="flex flex-col gap-12">
-        <div>
-          <div class="flex justify-between mb-8">
-            <span>Todo</span>
-            <span class="badge badge--todo">{{ todoTasks }}</span>
+    <div class="card-header" style="padding: 20px 24px; border-bottom: 1px solid var(--color-border);">
+      <h2 style="font-size: 20px; font-weight: 600; margin: 0; color: var(--color-text);">Task Summary</h2>
+    </div>
+    <div class="card-body" style="padding: 24px;">
+      <div class="flex flex-col" style="gap: 24px;">
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <div class="flex justify-between" style="align-items: center;">
+            <span style="font-size: 16px; color: var(--color-text);">Todo</span>
+            <span class="badge badge--todo" style="padding: 6px 12px; border-radius: 12px; font-size: 14px; font-weight: 500;">{{ todoTasks }}</span>
           </div>
-          <div class="flex justify-between mb-8">
-            <span>In Progress</span>
-            <span class="badge badge--in_progress">{{ activeTasks }}</span>
+          <div class="flex justify-between" style="align-items: center;">
+            <span style="font-size: 16px; color: var(--color-text);">In Progress</span>
+            <span class="badge badge--in_progress" style="padding: 6px 12px; border-radius: 12px; font-size: 14px; font-weight: 500;">{{ activeTasks }}</span>
           </div>
-          <div class="flex justify-between">
-            <span>Completed</span>
-            <span class="badge badge--done">{{ completedTasks }}</span>
+          <div class="flex justify-between" style="align-items: center;">
+            <span style="font-size: 16px; color: var(--color-text);">Completed</span>
+            <span class="badge badge--done" style="padding: 6px 12px; border-radius: 12px; font-size: 14px; font-weight: 500;">{{ completedTasks }}</span>
           </div>
         </div>
         
         <!-- ViewChildren Info -->
-        <div class="viewchildren-info" style="padding: 12px; background: rgba(0,0,0,0.02); border-radius: 6px;">
-          <div style="font-size: 11px; color: #888;">
-            <div>Total Cards: {{ totalStatCards }}</div>
+        <div class="viewchildren-info" style="padding: 16px; background: var(--color-secondary); border-radius: 8px; border: 1px solid var(--color-border);">
+          <div style="font-size: 14px; color: var(--color-text-secondary);">
+            <div style="margin-bottom: 4px; font-weight: 500;">Stats Container Info</div>
+            <div style="font-size: 12px;">Total Cards: {{ totalStatCards }}</div>
             <!-- <div>Container Visible: {{ isStatsContainerVisible ? 'Yes' : 'No' }}</div> -->
           </div>
         </div>

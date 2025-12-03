@@ -626,7 +626,7 @@ export class StateService {
 
   private async loadTeamMembers() {
     try {
-      this.http.get<TeamMember[]>(`${this.API_URL}/teams`).subscribe({
+      this.http.get<TeamMember[]>(`${this.API_URL}/users`).subscribe({
         next: (teamMembers) => {
           this.teamMembers.set(teamMembers);
         },

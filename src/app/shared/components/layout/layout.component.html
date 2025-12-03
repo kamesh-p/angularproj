@@ -1,3 +1,4 @@
+<!-- layout.component.html -->
 <div class="app-layout">
   <aside class="sidebar" [class.collapsed]="sidebarCollapsed">
     <div class="sidebar-header">
@@ -24,10 +25,7 @@
         <span class="nav-icon">👤</span>
         <span>Profile</span>
       </a>
-      <a routerLink="/settings" routerLinkActive="active" class="nav-item">
-   <span class="nav-icon">⚙️</span>
-   <span>Settings</span>
-    </a>
+      
       <a href="#" class="nav-item" (click)="onLogout($event)">
         <span class="nav-icon">🚪</span>
         <span>Logout</span>
@@ -51,6 +49,22 @@
         </div>
       </div>
       <div class="header-right">
+        <!-- Theme Toggle Button -->
+        <div class="theme-toggle-container">
+          <button 
+            class="theme-toggle-button"
+            [class.active]="currentThemeName === 'dark'"
+            (click)="toggleTheme()"
+            [title]="currentThemeName === 'light' ? 'Switch to dark mode' : 'Switch to light mode'"
+          >
+            <span class="theme-toggle-icon" *ngIf="currentThemeName === 'light'">🌙</span>
+            <span class="theme-toggle-icon" *ngIf="currentThemeName === 'dark'">☀️</span>
+            <span class="theme-toggle-text">
+              {{ currentThemeName === 'light' ? 'Dark Mode' : 'Light Mode' }}
+            </span>
+          </button>
+        </div>
+        
         <div class="user-menu">
           <div class="user-avatar">{{ currentUser()?.avatar || '👤' }}</div>
         </div>

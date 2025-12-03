@@ -1,18 +1,18 @@
-// Variables
+// Variables - Update only color variables to use theme variables
 :host {
-  --primary-color: #3b82f6;
-  --primary-hover: #2563eb;
-  --secondary-color: #6b7280;
-  --success-color: #10b981;
-  --warning-color: #f59e0b;
-  --error-color: #ef4444;
-  --background-color: #ffffff;
-  --surface-color: #f8fafc;
-  --text-primary: #1f2937;
-  --text-secondary: #6b7280;
-  --text-light: #9ca3af;
-  --border-color: #e5e7eb;
-  --border-light: #f3f4f6;
+  --primary-color: var(--color-primary, #3b82f6);
+  --primary-hover: var(--color-primary-hover, #2563eb);
+  --secondary-color: var(--color-text-secondary, #6b7280);
+  --success-color: var(--color-success, #10b981);
+  --warning-color: var(--color-warning, #f59e0b);
+  --error-color: var(--color-error, #ef4444);
+  --background-color: var(--color-background, #ffffff);
+  --surface-color: var(--color-surface, #f8fafc);
+  --text-primary: var(--color-text, #1f2937);
+  --text-secondary: var(--color-text-secondary, #6b7280);
+  --text-light: var(--color-text-secondary, #9ca3af);
+  --border-color: var(--color-border, #e5e7eb);
+  --border-light: rgba(var(--color-border), 0.3);
   --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
@@ -98,7 +98,7 @@
   
   button {
     background: var(--primary-color);
-    color: white;
+    color: var(--color-btn-primary-text, white);
     border: none;
     border-radius: var(--border-radius);
     padding: var(--spacing-sm) var(--spacing-lg);
@@ -126,7 +126,7 @@
 
 // Error Display
 .error-message {
-  background: #fef2f2;
+  background: rgba(var(--error-color), 0.1);
   border: 1px solid var(--error-color);
   border-radius: var(--border-radius);
   padding: var(--spacing-md);
@@ -257,7 +257,7 @@
   }
 }
 
-// Badges
+// Badges - Keep original styles but adjust opacity for dark mode
 .badge {
   display: inline-flex;
   align-items: center;
@@ -287,9 +287,9 @@
   }
   
   &--planning {
-    background: #f3f4f6;
-    color: #374151;
-    border: 1px solid #e5e7eb;
+    background: var(--surface-color);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
   }
   
   &--cancelled {
@@ -522,4 +522,17 @@
       padding: var(--spacing-md);
     }
   }
+}
+
+// Optional: Add theme-aware shadows
+[data-color-scheme="dark"] {
+  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+}
+
+[data-color-scheme="light"] {
+  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }

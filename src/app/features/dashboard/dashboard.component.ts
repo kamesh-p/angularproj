@@ -1,3 +1,4 @@
+// src/app/features/dashboard/dashboard.component.ts
 import { 
   Component, 
   inject, 
@@ -8,58 +9,122 @@ import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   AfterViewInit,
-  OnDestroy
+  OnDestroy,
+  signal,
+  computed
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { StateService } from '../../core/services/state.service';
-// import { TimeAgoPipe } from '../../shared/pipes/time-ago.pipe';
+import { AnalyticsService, ProjectStatistics, DashboardSummary, UpcomingDeadline, OverdueTask } from '../../core/services/analytics.services';
+import { ToastService } from '../../core/services/toast.service';
+import { TimeAgoPipe } from '../../shared/pipes/time-ago.pipe';
 import { HighlightDirective } from '../../shared/directives/highlight.directive';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, HighlightDirective],
+  imports: [CommonModule, TimeAgoPipe, ReactiveFormsModule, HighlightDirective],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DashboardComponent implements AfterViewInit, OnDestroy {
   private stateService = inject(StateService);
+  private analyticsService = inject(AnalyticsService);
+  private toastService = inject(ToastService);
   private router = inject(Router);
   private fb = inject(FormBuilder);
   private cdRef = inject(ChangeDetectorRef);
 
-  // ==========================================================================
-  // VIEW QUERIES - COMPLETE IMPLEMENTATION
-  // ==========================================================================
-
+  // ViewChild/ViewChildren
   @ViewChild('statsContainer') statsContainer!: ElementRef<HTMLDivElement>;
   @ViewChildren('statCard') statCards!: QueryList<ElementRef<HTMLDivElement>>;
   @ViewChildren(HighlightDirective) highlightDirectives!: QueryList<HighlightDirective>;
-  
-  // Additional ViewChild for form inputs
   @ViewChild('projectNameInput') projectNameInput!: ElementRef<HTMLInputElement>;
   @ViewChild('taskTitleInput') taskTitleInput!: ElementRef<HTMLInputElement>;
 
-  // ==========================================================================
-  // COMPONENT STATE
-  // ==========================================================================
-
+  // State from existing service
   readonly currentUser = this.stateService.currentUser;
   readonly projects = this.stateService.projects;
   readonly tasks = this.stateService.tasks;
   readonly users = this.stateService.users;
 
+  // NEW: Analytics data using signals
+  readonly projectStats = signal<ProjectStatistics[]>([]);
+  readonly dashboardSummary = signal<DashboardSummary | null>(null);
+  readonly upcomingDeadlines = signal<UpcomingDeadline[]>([]);
+  readonly overdueTasksGroups = signal<OverdueTask[]>([]);
+  readonly averageCompletion = signal<number>(0);
+  readonly taskStats = signal<{ todo: number; in_progress: number; done: number }>({ 
+    todo: 0, 
+    in_progress: 0, 
+    done: 0 
+  });
+
+  // Loading states
+  readonly isLoadingAnalytics = signal<boolean>(false);
+  readonly analyticsError = signal<string | null>(null);
+
+  // Dialog states
   showCreateProjectDialog = false;
   showCreateTaskDialog = false;
   projectForm: FormGroup;
   taskForm: FormGroup;
 
+  // ViewChild demo states
   highlightedCardIndex: number = -1;
   totalStatCards: number = 0;
   isStatsContainerVisible: boolean = false;
+
+  // NEW: Computed values from analytics
+  readonly totalProjectsFromAnalytics = computed(() => 
+    this.dashboardSummary()?.total_projects || 0
+  );
+
+  readonly totalTasksFromAnalytics = computed(() => 
+    this.dashboardSummary()?.total_tasks || 0
+  );
+
+  readonly completedTasksFromAnalytics = computed(() => 
+    this.dashboardSummary()?.completed_tasks || 0
+  );
+
+  readonly activeTasksFromAnalytics = computed(() => 
+    this.dashboardSummary()?.active_tasks || 0
+  );
+
+  readonly pendingTasksFromAnalytics = computed(() => 
+    this.dashboardSummary()?.pending_tasks || 0
+  );
+
+  // Keep existing getters for compatibility
+  get totalProjects() {
+    return this.totalProjectsFromAnalytics() || this.projects().length;
+  }
+
+  get activeTasks() {
+    return this.activeTasksFromAnalytics() || this.tasks().filter(t => t.status === 'in_progress').length;
+  }
+
+  get completedTasks() {
+    return this.completedTasksFromAnalytics() || this.tasks().filter(t => t.status === 'done').length;
+  }
+
+  get totalTasks() {
+    return this.totalTasksFromAnalytics() || this.tasks().length;
+  }
+
+  get todoTasks() {
+    return this.taskStats().todo || this.tasks().filter(t => t.status === 'todo').length;
+  }
+
+  get recentTasks() {
+    return this.tasks()
+      // .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      // .slice(0, 5);
+  }
 
   constructor() {
     this.projectForm = this.fb.group({
@@ -80,20 +145,139 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
     });
   }
 
-  // ==========================================================================
-  // LIFECYCLE HOOKS
-  // ==========================================================================
-
   ngAfterViewInit() {
     this.initializeViewQueries();
+    
+    // Load analytics data
+    this.loadAnalytics();
   }
 
   ngOnDestroy() {
-    // Clean up any subscriptions if needed
+    // Cleanup if needed
   }
 
   // ==========================================================================
-  // VIEW QUERIES IMPLEMENTATION
+  // NEW: ANALYTICS LOADING METHODS
+  // ==========================================================================
+
+  /**
+   * Load all analytics data from JdbcTemplate APIs
+   */
+  loadAnalytics(): void {
+    console.log('🔄 [DASHBOARD] Loading analytics data...',this.tasks());
+    this.isLoadingAnalytics.set(true);
+    this.analyticsError.set(null);
+
+    // Load dashboard summary
+    this.analyticsService.getDashboardSummary().subscribe({
+      next: (summary) => {
+        this.dashboardSummary.set(summary);
+        console.log('✅ [DASHBOARD] Dashboard summary loaded');
+        this.cdRef.markForCheck();
+      },
+      error: (error) => {
+        console.error('❌ [DASHBOARD] Error loading dashboard summary:', error);
+        this.analyticsError.set('Failed to load dashboard summary');
+        this.cdRef.markForCheck();
+      }
+    });
+
+    // Load project statistics
+    this.analyticsService.getProjectStatistics().subscribe({
+      next: (stats) => {
+        this.projectStats.set(stats);
+        console.log('✅ [DASHBOARD] Project statistics loaded');
+        this.cdRef.markForCheck();
+      },
+      error: (error) => {
+        console.error('❌ [DASHBOARD] Error loading project stats:', error);
+      }
+    });
+
+    // Load upcoming deadlines
+    this.analyticsService.getUpcomingDeadlines().subscribe({
+      next: (deadlines) => {
+        this.upcomingDeadlines.set(deadlines);
+        console.log('✅ [DASHBOARD] Upcoming deadlines loaded');
+        this.cdRef.markForCheck();
+      },
+      error: (error) => {
+        console.error('❌ [DASHBOARD] Error loading deadlines:', error);
+      }
+    });
+
+    // Load overdue tasks
+    this.analyticsService.getOverdueTasksByPriority().subscribe({
+      next: (overdue) => {
+        this.overdueTasksGroups.set(overdue);
+        console.log('✅ [DASHBOARD] Overdue tasks loaded');
+        this.cdRef.markForCheck();
+      },
+      error: (error) => {
+        console.error('❌ [DASHBOARD] Error loading overdue tasks:', error);
+      }
+    });
+
+    // Load task statistics
+    this.analyticsService.getTaskStatsByStatus().subscribe({
+      next: (stats) => {
+        this.taskStats.set(stats);
+        console.log('✅ [DASHBOARD] Task stats loaded');
+        this.cdRef.markForCheck();
+      },
+      error: (error) => {
+        console.error('❌ [DASHBOARD] Error loading task stats:', error);
+      }
+    });
+
+    // Load average completion
+    this.analyticsService.getAverageCompletion().subscribe({
+      next: (result) => {
+        this.averageCompletion.set(result.averageCompletion);
+        console.log('✅ [DASHBOARD] Average completion loaded');
+        this.cdRef.markForCheck();
+      },
+      error: (error) => {
+        console.error('❌ [DASHBOARD] Error loading average completion:', error);
+      },
+      complete: () => {
+        this.isLoadingAnalytics.set(false);
+        this.cdRef.markForCheck();
+      }
+    });
+  }
+
+  /**
+   * Refresh all analytics data
+   */
+  refreshAnalytics(): void {
+    console.log('🔄 [DASHBOARD] Refreshing analytics...');
+    this.toastService.show('Refreshing analytics...', 'info');
+    this.loadAnalytics();
+  }
+
+  /**
+   * Mark overdue tasks as urgent (bulk operation)
+   */
+  markOverdueTasksUrgent(): void {
+    console.log('⚡ [DASHBOARD] Marking overdue tasks as urgent...');
+    
+    this.analyticsService.markOverdueTasksUrgent().subscribe({
+      next: (result) => {
+        this.toastService.show(result.message, 'success');
+        // Reload analytics to reflect changes
+        this.loadAnalytics();
+        this.cdRef.markForCheck();
+      },
+      error: (error) => {
+        this.toastService.show('Failed to mark tasks as urgent', 'error');
+        console.error('❌ [DASHBOARD] Error:', error);
+      }
+    });
+  }
+
+  // ==========================================================================
+  // VIEW QUERIES IMPLEMENTATION (Existing)
   // ==========================================================================
 
   private initializeViewQueries() {
@@ -104,17 +288,13 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
 
   highlightCard(index: number): void {
     if (index === -1) {
-      // Clear all highlights
       this.highlightedCardIndex = -1;
     } else {
-      // Set the highlighted card
       this.highlightedCardIndex = index;
       
-      // Optional: Add a subtle animation effect
       if (this.statCards && this.statCards.length > index) {
         const card = this.statCards.get(index);
         if (card) {
-          // Add a subtle pulse effect
           card.nativeElement.style.transform = 'scale(1.02)';
           setTimeout(() => {
             if (card.nativeElement) {
@@ -127,7 +307,6 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
     this.cdRef.markForCheck();
   }
 
-  
   getCardContent(index: number): string {
     if (this.statCards && this.statCards.length > index) {
       const card = this.statCards.get(index);
@@ -136,9 +315,6 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
     return '';
   }
 
-  /**
-   * Focus on the first input in a dialog when it opens
-   */
   focusOnDialogInput(dialogType: 'project' | 'task'): void {
     setTimeout(() => {
       let inputElement: HTMLInputElement | null = null;
@@ -154,10 +330,6 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
       }
     });
   }
-
-  // ==========================================================================
-  // PRIVATE HELPER METHODS
-  // ==========================================================================
 
   private setupStatCards() {
     if (this.statCards) {
@@ -197,34 +369,8 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
   }
 
   // ==========================================================================
-  // GETTERS & EXISTING METHODS
+  // EXISTING METHODS (Keep all your existing methods)
   // ==========================================================================
-
-  get totalProjects() {
-    return this.projects().length;
-  }
-
-  get activeTasks() {
-    return this.tasks().filter(t => t.status === 'in_progress').length;
-  }
-
-  get completedTasks() {
-    return this.tasks().filter(t => t.status === 'done').length;
-  }
-
-  get totalTasks() {
-    return this.tasks().length;
-  }
-
-  get todoTasks() {
-    return this.tasks().filter(t => t.status === 'todo').length;
-  }
-
-  get recentTasks() {
-    return this.tasks()
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 5);
-  }
 
   getUserAvatar(userId: string): string {
     return this.users().find(u => u.id === userId)?.avatar || '👤';
@@ -234,7 +380,6 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
     return this.users().find(u => u.id === userId)?.name || 'Unknown';
   }
 
-  // Navigation methods
   navigateToProjects() {
     this.router.navigate(['/projects']);
   }
@@ -251,7 +396,6 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
     this.router.navigate([path]);
   }
 
-  // Dialog methods
   openCreateProjectDialog() {
     this.showCreateProjectDialog = true;
     this.projectForm.reset({
@@ -302,6 +446,10 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
 
       this.stateService.addProject(newProject);
       this.closeCreateProjectDialog();
+      
+      // Refresh analytics after creating project
+      setTimeout(() => this.loadAnalytics(), 500);
+      
       this.cdRef.markForCheck();
     }
   }
@@ -319,6 +467,10 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
 
       this.stateService.addTask(newTask);
       this.closeCreateTaskDialog();
+      
+      // Refresh analytics after creating task
+      setTimeout(() => this.loadAnalytics(), 500);
+      
       this.cdRef.markForCheck();
     }
   }

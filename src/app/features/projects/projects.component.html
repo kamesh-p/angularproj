@@ -2,12 +2,12 @@
   <h1 class="page-title">Projects</h1>
   <p class="page-description">Manage and track all your projects</p>
   
-<div class="project-stats">
+  <!-- Project Statistics -->
+  <div class="project-stats">
     <div class="stat-card">
       <span class="stat-label">Total:</span>
       <span class="stat-value">{{ projectStats().total }}</span>
     </div>
-   
     <div class="stat-card">
       <span class="stat-label">Completed:</span>
       <span class="stat-value">{{ projectStats().completed }}</span>
@@ -22,80 +22,315 @@
     </div>
     <div class="stat-card">
       <span class="stat-label">Planning:</span>
-      <span class="stat-value">{{ projectStats().Planning }}</span>
+      <span class="stat-value">{{ projectStats().planning }}</span>
     </div>
+  </div>
+  
+  <!-- Action Buttons -->
+  <div class="action-buttons">
+    <button (click)="openCreateDialog()" class="btn btn--primary" [disabled]="isLoading()">
+      ➕ Create New Project
+    </button>
+    <button (click)="refreshProjects()" class="btn btn--secondary" [disabled]="isLoading()">
+      {{ isLoading() ? '⏳ Loading...' : '🔄 Refresh Projects' }}
+    </button>
   </div>
   
   <!-- Loading Indicator -->
   @if (isLoading()) {
     <div class="loading-indicator">
+      <span class="spinner"></span>
       Loading projects...
     </div>
   }
   
-  <!-- Error Display -->
-  @if (error()) {
-    <div class="error-message">
-      {{ error() }}
-      <button (click)="error.set(null)">Dismiss</button>
-    </div>
-  }
+  
 </div>
 
-
-@if (debouncedSearchTerm()) {
+<!-- Search Info -->
+<!-- @if (debouncedSearchTerm()) {
   <div class="search-info">
-    Searching for: <strong>{{ debouncedSearchTerm() }}</strong>
+    🔍 Searching for: <strong>{{ debouncedSearchTerm() }}</strong>
   </div>
-}
+} -->
 
-
+<!-- Projects Grid -->
 <div class="projects-grid">
   @for (project of filteredProjects(); track project.id) {
     <div class="project-card" 
          [class.selected]="selectedProjectId() === project.id"
          (click)="selectProject(project.id)">
+      
+      <!-- Action Buttons (Edit/Delete) -->
+      <div class="project-card-actions">
+        <button class="action-btn action-btn--edit" 
+                (click)="openEditDialog(project, $event)"
+                [disabled]="isLoading()"
+                title="Edit Project">
+          ✏️
+        </button>
+        <button class="action-btn action-btn--delete" 
+                (click)="confirmDeleteProject(project, $event)"
+                [disabled]="isLoading()"
+                title="Delete Project">
+          🗑️
+        </button>
+      </div>
+      
       <h3>{{ project.name }}</h3>
       <p>{{ project.description }}</p>
       <div class="project-meta">
         <span class="badge" [class]="'badge--' + project.status">{{ project.status }}</span>
-        <span>{{ project.startDate | formatDate }}</span>
+        <span>📅 {{ project.startDate | formatDate }}</span>
       </div>
     </div>
   } @empty {
     <div class="empty-state">
       @if (isLoading()) {
-        <p>Loading projects...</p>
+        <p>⏳ Loading projects...</p>
+      } @else if (debouncedSearchTerm()) {
+        <p>🔍 No projects found matching "{{ debouncedSearchTerm() }}"</p>
       } @else {
-        <p>No projects available</p>
+        <p>📂 No projects available. Create your first project!</p>
       }
     </div>
   }
 </div>
 
+<!-- CREATE PROJECT DIALOG -->
+@if (showCreateDialog()) {
+  <div class="dialog-overlay" (click)="closeCreateDialog()">
+    <div class="dialog" (click)="$event.stopPropagation()">
+      <div class="dialog__header">
+        <h2 class="dialog__title">➕ Create New Project</h2>
+        <button class="dialog__close" (click)="closeCreateDialog()">×</button>
+      </div>
+      
+      <div class="dialog__content">
+        <form [formGroup]="projectForm" class="form">
+          <div class="form-group">
+            <label for="projectName" class="form-label">Project Name *</label>
+            <input
+              type="text"
+              id="projectName"
+              formControlName="name"
+              class="form-input"
+              [class.error]="hasError('name')"
+              placeholder="Enter project name"
+            />
+            @if (hasError('name')) {
+              <div class="form-error">{{ getErrorMessage('name') }}</div>
+            }
+          </div>
 
+          <div class="form-group">
+            <label for="projectDescription" class="form-label">Description *</label>
+            <textarea
+              id="projectDescription"
+              formControlName="description"
+              class="form-textarea"
+              [class.error]="hasError('description')"
+              placeholder="Enter project description"
+              rows="3"
+            ></textarea>
+            @if (hasError('description')) {
+              <div class="form-error">{{ getErrorMessage('description') }}</div>
+            }
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="projectStatus" class="form-label">Status *</label>
+              <select id="projectStatus" formControlName="status" class="form-select">
+                <option value="planning">📋 Planning</option>
+                <option value="in_progress">⚡ In Progress</option>
+                <option value="on_hold">⏸️ On Hold</option>
+                <option value="completed">✅ Completed</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="projectBudget" class="form-label">Budget ($)</label>
+              <input
+                type="number"
+                id="projectBudget"
+                formControlName="budget"
+                class="form-input"
+                placeholder="0"
+                min="0"
+              />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="projectStartDate" class="form-label">Start Date *</label>
+              <input
+                type="date"
+                id="projectStartDate"
+                formControlName="startDate"
+                class="form-input"
+                [class.error]="hasError('startDate')"
+              />
+              @if (hasError('startDate')) {
+                <div class="form-error">{{ getErrorMessage('startDate') }}</div>
+              }
+            </div>
+
+            <div class="form-group">
+              <label for="projectEndDate" class="form-label">End Date</label>
+              <input
+                type="date"
+                id="projectEndDate"
+                formControlName="endDate"
+                class="form-input"
+              />
+            </div>
+          </div>
+        </form>
+      </div>
+      
+      <div class="dialog__footer">
+        <button class="btn btn--secondary" (click)="closeCreateDialog()" [disabled]="isLoading()">
+          Cancel
+        </button>
+        <button 
+          class="btn btn--primary" 
+          (click)="createProject()"
+          [disabled]="!projectForm.valid || isLoading()">
+          {{ isLoading() ? '⏳ Creating...' : '✅ Create Project' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- EDIT PROJECT DIALOG -->
+@if (showEditDialog()) {
+  <div class="dialog-overlay" (click)="closeEditDialog()">
+    <div class="dialog" (click)="$event.stopPropagation()">
+      <div class="dialog__header">
+        <h2 class="dialog__title">✏️ Edit Project</h2>
+        <button class="dialog__close" (click)="closeEditDialog()">×</button>
+      </div>
+      
+      <div class="dialog__content">
+        <form [formGroup]="projectForm" class="form">
+          <div class="form-group">
+            <label for="editProjectName" class="form-label">Project Name *</label>
+            <input
+              type="text"
+              id="editProjectName"
+              formControlName="name"
+              class="form-input"
+              [class.error]="hasError('name')"
+              placeholder="Enter project name"
+            />
+            @if (hasError('name')) {
+              <div class="form-error">{{ getErrorMessage('name') }}</div>
+            }
+          </div>
+
+          <div class="form-group">
+            <label for="editProjectDescription" class="form-label">Description *</label>
+            <textarea
+              id="editProjectDescription"
+              formControlName="description"
+              class="form-textarea"
+              [class.error]="hasError('description')"
+              placeholder="Enter project description"
+              rows="3"
+            ></textarea>
+            @if (hasError('description')) {
+              <div class="form-error">{{ getErrorMessage('description') }}</div>
+            }
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="editProjectStatus" class="form-label">Status *</label>
+              <select id="editProjectStatus" formControlName="status" class="form-select">
+                <option value="planning">📋 Planning</option>
+                <option value="in_progress">⚡ In Progress</option>
+                <option value="on_hold">⏸️ On Hold</option>
+                <option value="completed">✅ Completed</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="editProjectBudget" class="form-label">Budget ($)</label>
+              <input
+                type="number"
+                id="editProjectBudget"
+                formControlName="budget"
+                class="form-input"
+                placeholder="0"
+                min="0"
+              />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="editProjectStartDate" class="form-label">Start Date *</label>
+              <input
+                type="date"
+                id="editProjectStartDate"
+                formControlName="startDate"
+                class="form-input"
+                [class.error]="hasError('startDate')"
+              />
+              @if (hasError('startDate')) {
+                <div class="form-error">{{ getErrorMessage('startDate') }}</div>
+              }
+            </div>
+
+            <div class="form-group">
+              <label for="editProjectEndDate" class="form-label">End Date</label>
+              <input
+                type="date"
+                id="editProjectEndDate"
+                formControlName="endDate"
+                class="form-input"
+              />
+            </div>
+          </div>
+        </form>
+      </div>
+      
+      <div class="dialog__footer">
+        <button class="btn btn--secondary" (click)="closeEditDialog()" [disabled]="isLoading()">
+          Cancel
+        </button>
+        <button 
+          class="btn btn--primary" 
+          (click)="updateProject()"
+          [disabled]="!projectForm.valid || isLoading()">
+          {{ isLoading() ? '⏳ Updating...' : '💾 Save Changes' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- PROJECT DETAILS DIALOG -->
 @if (selectedProject()) {
   <div class="dialog-overlay" (click)="closeDialog()">
     <div class="dialog" (click)="$event.stopPropagation()">
       <div class="dialog__header">
-        <h2 class="dialog__title">Project Details</h2>
-        <button class="dialog__close" (click)="closeDialog()">
-          ×
-        </button>
+        <h2 class="dialog__title">📋 Project Details</h2>
+        <button class="dialog__close" (click)="closeDialog()">×</button>
       </div>
       
-      <div class="dialog__content">
-        <div class="selected-project-details">
-          <h2>Selected Project</h2>
-          <p><strong>Name:</strong> {{ selectedProject()?.name }}</p>
-          <p><strong>Status:</strong> {{ selectedProject()?.status }}</p>
-          <p><strong>Description:</strong> {{ selectedProject()?.description }}</p>
-          <p><strong>Start Date:</strong> {{ selectedProject()?.startDate }}</p>
-        </div>
-      </div>
+      
       
       <div class="dialog__footer">
-        <button (click)="closeDialog()">Close</button>
+        <button class="btn btn--secondary" (click)="closeDialog()">
+          Close
+        </button>
+        <button class="btn btn--primary" (click)="openEditDialog(selectedProject()!)">
+          ✏️ Edit Project
+        </button>
       </div>
     </div>
   </div>

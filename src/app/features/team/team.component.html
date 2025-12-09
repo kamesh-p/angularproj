@@ -1,6 +1,11 @@
+<!-- src/app/features/team/team.component.html -->
 <div class="page-header">
   <h1 class="page-title">Team Members</h1>
   <p class="page-description">View and manage your team</p>
+  
+  <button class="btn btn--secondary" (click)="loadTeamPerformance()" [disabled]="isLoadingPerformance()" style="margin-top: 12px;">
+    {{ isLoadingPerformance() ? '⏳ Loading...' : '🔄 Refresh Performance' }}
+  </button>
 </div>
 
 <div class="team-grid">
@@ -10,6 +15,38 @@
       <h3>{{ member.name }}</h3>
       <p class="member-role">{{ member.role }}</p>
       <span class="status" [class]="'status--' + member.status">{{ member.status }}</span>
+      
+      <!-- NEW: Performance Metrics from JdbcTemplate -->
+      @if (getPerformanceForMember(member.id); as perf) {
+        <div class="performance-section" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--color-border);">
+          <h4 style="font-size: 13px; margin: 0 0 8px 0; color: var(--color-text-secondary);">📊 Performance</h4>
+          
+          <div class="perf-stats" style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;">
+            <div style="display: flex; justify-content: space-between;">
+              <span>Tasks Assigned:</span>
+              <strong>{{ perf.totalTasksAssigned }}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span>Completed:</span>
+              <strong style="color: var(--color-success);">{{ perf.completedTasks }}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span>Success Rate:</span>
+              <strong [class]="getPerformanceClass(perf.successRate)">
+                {{ perf.successRate.toFixed(1) }}%
+              </strong>
+            </div>
+          </div>
+          
+          <!-- Progress Bar -->
+          <div class="progress-bar" style="background: #e5e7eb; height: 6px; border-radius: 3px; overflow: hidden; margin-top: 8px;">
+            <div class="progress-fill" 
+                 [style.width.%]="perf.successRate"
+                 [style.background-color]="perf.successRate >= 80 ? '#10b981' : perf.successRate >= 60 ? '#3b82f6' : '#f59e0b'"
+                 style="height: 100%; transition: width 0.3s;"></div>
+          </div>
+        </div>
+      }
     </div>
   }@empty {
     <div class="empty-state">
@@ -17,3 +54,18 @@
     </div>
   }
 </div>
+
+<style>
+  .performance-excellent {
+    color: #10b981;
+  }
+  .performance-good {
+    color: #3b82f6;
+  }
+  .performance-average {
+    color: #f59e0b;
+  }
+  .performance-needs-improvement {
+    color: #ef4444;
+  }
+</style>

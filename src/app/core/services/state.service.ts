@@ -639,16 +639,12 @@ export class StateService {
     }
   }
 
-  /**
-   * Trigger manual refresh
-   */
+  
   triggerRefresh(): void {
     this.refreshTrigger$.next();
   }
 
-  /**
-   * Get projects observable for direct subscription
-   */
+ 
   getProjectsObservable(): Observable<Project[]> {
     return this.projects$;
   }
